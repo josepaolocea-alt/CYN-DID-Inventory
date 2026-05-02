@@ -398,12 +398,12 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <table>
           <thead><tr>
             <th><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
-            <th>#</th><th>Client</th><th>Product</th><th>Number</th><th>Status</th><th>Remarks</th>
-            <th>OSF</th><th>MRC</th><th>OTRF</th><th>Posted</th><th>Ch.Fee</th><th>CPM</th>
-            <th>Effective Date</th><th>Activated</th><th>Provider</th>
-            <th>Arrival Date</th><th>Prov Act Date</th><th>Type</th>
-            <th>Prov OSF</th><th>Prov MRC</th><th>Prov CPM</th><th>Posted Date</th>
-            <th>Route Req By</th><th>Prev Clients</th><th>Deac Date</th>
+            <th>#</th><th onclick="sortBy('client')" style="cursor:pointer;user-select:none" id="th-client">Client</th><th onclick="sortBy('product')" style="cursor:pointer;user-select:none" id="th-product">Product</th><th onclick="sortBy('number')" style="cursor:pointer;user-select:none" id="th-number">Number</th><th onclick="sortBy('status')" style="cursor:pointer;user-select:none" id="th-status">Status</th><th onclick="sortBy('remarks')" style="cursor:pointer;user-select:none" id="th-remarks">Remarks</th>
+            <th onclick="sortBy('osf')" style="cursor:pointer;user-select:none" id="th-osf">OSF</th><th onclick="sortBy('mrc')" style="cursor:pointer;user-select:none" id="th-mrc">MRC</th><th onclick="sortBy('otrf')" style="cursor:pointer;user-select:none" id="th-otrf">OTRF</th><th onclick="sortBy('posted')" style="cursor:pointer;user-select:none" id="th-posted">Posted</th><th onclick="sortBy('channelfee')" style="cursor:pointer;user-select:none" id="th-channelfee">Ch.Fee</th><th onclick="sortBy('cpm')" style="cursor:pointer;user-select:none" id="th-cpm">CPM</th>
+            <th onclick="sortBy('effectiveDate')" style="cursor:pointer;user-select:none" id="th-effectiveDate">Effective Date</th><th onclick="sortBy('activated')" style="cursor:pointer;user-select:none" id="th-activated">Activated</th><th onclick="sortBy('provider')" style="cursor:pointer;user-select:none" id="th-provider">Provider</th>
+            <th onclick="sortBy('arrivalDate')" style="cursor:pointer;user-select:none" id="th-arrivalDate">Arrival Date</th><th onclick="sortBy('activationDate')" style="cursor:pointer;user-select:none" id="th-activationDate">Prov Act Date</th><th onclick="sortBy('type')" style="cursor:pointer;user-select:none" id="th-type">Type</th>
+            <th onclick="sortBy('provosf')" style="cursor:pointer;user-select:none" id="th-provosf">Prov OSF</th><th onclick="sortBy('provmrc')" style="cursor:pointer;user-select:none" id="th-provmrc">Prov MRC</th><th onclick="sortBy('provcpm')" style="cursor:pointer;user-select:none" id="th-provcpm">Prov CPM</th><th onclick="sortBy('postedDate')" style="cursor:pointer;user-select:none" id="th-postedDate">Posted Date</th>
+            <th onclick="sortBy('routeBy')" style="cursor:pointer;user-select:none" id="th-routeBy">Route Req By</th><th onclick="sortBy('prevClients')" style="cursor:pointer;user-select:none" id="th-prevClients">Prev Clients</th><th onclick="sortBy('deacDate')" style="cursor:pointer;user-select:none" id="th-deacDate">Deac Date</th>
             <th>Actions</th>
           </tr></thead>
           <tbody id="inv-tbody"></tbody>
@@ -490,7 +490,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
             <th>Date & Time</th>
             <th>User</th>
             <th>Action</th>
-            <th>Number</th>
+            <th onclick="sortBy('number')" style="cursor:pointer;user-select:none" id="th-number">Number</th>
             <th>Details</th>
           </tr></thead>
           <tbody id="log-tbody"></tbody>
@@ -1171,7 +1171,6 @@ function applyFilters_internal() {
   sortFilteredData();
   renderRows();
   renderPagination();
-  setTimeout(initSortableHeaders, 100);
   const rc=document.getElementById('record-count');
   if(rc) rc.textContent=`${filteredData.length} record${filteredData.length!==1?'s':''}`;
 
@@ -2167,42 +2166,26 @@ function autoSizeColumns() {
 // ══════════════════════════════════════════
 //  COLUMN SORTING
 // ══════════════════════════════════════════
-const SORT_FIELDS = [
-  null, null, // checkbox, #
-  'client','product','number','status','remarks',
-  'osf','mrc','otrf','posted','channelfee','cpm',
-  'effectiveDate','activated','provider','arrivalDate','activationDate',
-  'provosf','provmrc','provcpm','postedDate','type','routeBy','prevClients','deacDate',
-  null // actions
-];
-
-function initSortableHeaders() {
-  const table = document.getElementById('inv-table');
-  if (!table) return;
-  const ths = Array.from(table.querySelectorAll('th'));
-  ths.forEach((th, i) => {
-    const field = SORT_FIELDS[i];
-    // Remove old handler
-    th.onclick = null;
-    if (!field) { th.classList.remove('sortable'); return; }
-    th.classList.add('sortable');
-    th.onclick = function(e) {
-      if (e.target.classList.contains('col-resizer')) return;
-      if (sortCol === field) {
-        sortDir *= -1;
-      } else {
-        sortCol = field;
-        sortDir = 1;
-      }
-      ths.forEach(t => t.classList.remove('sort-asc','sort-desc'));
-      th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
-      currentPage = 1;
-      sortFilteredData();
-      renderRows();
-      renderPagination();
-    };
+function sortBy(field) {
+  if (sortCol === field) {
+    sortDir *= -1;
+  } else {
+    sortCol = field;
+    sortDir = 1;
+  }
+  // Update all header indicators
+  document.querySelectorAll('#inv-table th[id^="th-"]').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
   });
+  const th = document.getElementById('th-' + field);
+  if (th) th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+  currentPage = 1;
+  sortFilteredData();
+  renderRows();
+  renderPagination();
 }
+
+function initSortableHeaders() { /* handled via inline onclick */ }
 
 function sortFilteredData() {
   if (!sortCol) return;
