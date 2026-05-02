@@ -2229,9 +2229,11 @@ function initResizableColumns() {
     div.className = 'col-resizer';
     th.appendChild(div);
 
+    div.addEventListener('click', function(e){ e.stopPropagation(); e.preventDefault(); });
     div.addEventListener('mousedown', function(e) {
       e.stopPropagation();
       e.preventDefault();
+      e.cancelBubble = true;
       const startX = e.pageX;
       const startW = th.getBoundingClientRect().width;
       div.classList.add('active');
