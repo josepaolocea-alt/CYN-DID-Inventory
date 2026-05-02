@@ -1171,6 +1171,7 @@ function applyFilters_internal() {
   sortFilteredData();
   renderRows();
   renderPagination();
+  setTimeout(initSortableHeaders, 100);
   const rc=document.getElementById('record-count');
   if(rc) rc.textContent=`${filteredData.length} record${filteredData.length!==1?'s':''}`;
 
@@ -1222,7 +1223,7 @@ function renderRows() {
     </tr>`;
   }).join('');
   updateSelectionUI();
-  setTimeout(() => { autoSizeColumns(); initSortableHeaders(); }, 80);
+  setTimeout(() => { autoSizeColumns(); }, 80);
 }
 
 function renderPagination() {
@@ -2178,13 +2179,14 @@ const SORT_FIELDS = [
 function initSortableHeaders() {
   const table = document.getElementById('inv-table');
   if (!table) return;
-  const ths = table.querySelectorAll('th');
+  const ths = Array.from(table.querySelectorAll('th'));
   ths.forEach((th, i) => {
     const field = SORT_FIELDS[i];
-    if (!field) return;
+    // Remove old handler
+    th.onclick = null;
+    if (!field) { th.classList.remove('sortable'); return; }
     th.classList.add('sortable');
-    th.addEventListener('click', (e) => {
-      // Don't sort if dragging resizer
+    th.onclick = function(e) {
       if (e.target.classList.contains('col-resizer')) return;
       if (sortCol === field) {
         sortDir *= -1;
@@ -2192,14 +2194,13 @@ function initSortableHeaders() {
         sortCol = field;
         sortDir = 1;
       }
-      // Update header classes
-      ths.forEach(t => { t.classList.remove('sort-asc','sort-desc'); });
+      ths.forEach(t => t.classList.remove('sort-asc','sort-desc'));
       th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
-      // Re-render
       currentPage = 1;
+      sortFilteredData();
       renderRows();
       renderPagination();
-    });
+    };
   });
 }
 
