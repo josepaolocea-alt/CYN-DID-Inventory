@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CYN DID Inventory</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -334,9 +335,19 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <button class="btn btn-green admin-only" onclick="openAddModal()">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Number
         </button>
-        <button class="btn btn-secondary admin-only" onclick="triggerUpload()">⬆️ Upload CSV</button>
-        <button class="btn btn-secondary" onclick="downloadSampleCSV()">📄 Sample CSV</button>
-        <button class="btn btn-secondary" onclick="exportAllCSV()">⬇️ Export All</button>
+        <div class="actions-dropdown">
+          <button class="btn btn-secondary" onclick="toggleActionsMenu(event)">
+            ⚙️ Actions
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="actions-menu" id="actions-menu">
+            <button class="actions-menu-item admin-only" onclick="triggerUpload();closeActionsMenu()">⬆️ Upload CSV</button>
+            <button class="actions-menu-item" onclick="downloadSampleCSV();closeActionsMenu()">📄 Sample CSV</button>
+            <hr class="actions-menu-divider">
+            <button class="actions-menu-item" onclick="exportAllCSV();closeActionsMenu()">⬇️ Export All</button>
+            <button class="actions-menu-item hidden" id="menu-dl-sel" onclick="downloadSelectedCSV();closeActionsMenu()">⬇️ Download Selected</button>
+          </div>
+        </div>
         <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
       </div>
     </div>
@@ -380,7 +391,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
           <span style="font-size:12px;color:var(--text2)" id="sel-info">0 selected</span>
           <button class="btn btn-danger btn-sm hidden admin-only" id="btn-del-sel" onclick="deleteSelected()">🗑 Delete Selected</button>
           <button class="btn btn-secondary btn-sm hidden admin-only" id="btn-edit-sel" onclick="bulkEditSelected()">✏️ Bulk Edit</button>
-          <button class="btn btn-secondary btn-sm hidden" id="btn-dl-sel" onclick="downloadSelectedCSV()">⬇️ Download Selected</button>
+
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;color:var(--text3)" id="record-count"></span>
@@ -944,6 +955,10 @@ function applyRoleUI() {
 // ══════════════════════════════════════════
 function listenRecords() {
   if (unsubRecords) unsubRecords();
+  // Show loading on first load
+  const loadingEl=document.getElementById('inv-loading');
+  const tableEl=document.querySelector('.table-scroll');
+  if(DATA.length===0){ if(loadingEl)loadingEl.classList.remove('hidden'); if(tableEl)tableEl.style.display='none'; }
   unsubRecords = db.collection('records').orderBy('createdAt','asc')
     .onSnapshot(snap => {
       const prevIds = new Set(DATA.map(r=>r.id));
@@ -962,6 +977,9 @@ function listenRecords() {
           },100);
         }
       });
+      // Hide loading spinner
+      const le=document.getElementById('inv-loading'); if(le)le.classList.add('hidden');
+      const te=document.querySelector('.table-scroll'); if(te)te.style.display='';
       setSyncStatus(true);
       applyFilters_internal();
       if (document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
@@ -1066,7 +1084,10 @@ function rebuildCharts() {
     {label:'Activated',data:ac,backgroundColor:'rgba(34,197,94,0.7)',borderRadius:4},
     {label:'Deactivated',data:dc,backgroundColor:'rgba(239,68,68,0.6)',borderRadius:4}
   ]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:tc,font:{size:12}}}},
+    plugins:{
+      legend:{labels:{color:tc,font:{size:12}}},
+      datalabels:{color:tc,font:{size:10},formatter:v=>v>0?v:'',anchor:'end',align:'top'}
+    },
     scales:{x:{ticks:{color:tc},grid:{color:gc}},y:{ticks:{color:tc,stepSize:1},grid:{color:gc},beginAtZero:true}}}});
   const sv=[DATA.filter(r=>r.status==='Active').length,DATA.filter(r=>r.status==='Available').length,
     DATA.filter(r=>r.status==='Reserved').length,DATA.filter(r=>r.status==='Used as Random ANI').length];
@@ -1074,7 +1095,10 @@ function rebuildCharts() {
     datasets:[{data:sv,backgroundColor:['rgba(34,197,94,0.8)','rgba(59,130,246,0.8)','rgba(234,179,8,0.8)','rgba(168,85,247,0.8)'],
     borderWidth:2,borderColor:isDark?'#1a1a1a':'#fff'}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'right',labels:{color:tc,font:{size:12},padding:16}}}}});
+      plugins:{
+        legend:{position:'right',labels:{color:tc,font:{size:12},padding:16}},
+        datalabels:{color:'#fff',font:{size:11,weight:'bold'},formatter:(v,ctx)=>v>0?v:''}
+      }}});
 
   // Top Clients chart
   const clientCounts={};
@@ -1086,7 +1110,7 @@ function rebuildCharts() {
       data:{labels:clientSorted.map(x=>x[0]),datasets:[{label:'Numbers',data:clientSorted.map(x=>x[1]),
         backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4}]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false}},
+        plugins:{legend:{display:false},datalabels:{color:tc,font:{size:11},anchor:'end',align:'right',formatter:v=>v}},
         scales:{x:{ticks:{color:tc},grid:{color:gc},beginAtZero:true},y:{ticks:{color:tc},grid:{color:gc}}}}});
   }
 
@@ -1100,7 +1124,7 @@ function rebuildCharts() {
       data:{labels:prodSorted.map(x=>x[0]),datasets:[{label:'Numbers',data:prodSorted.map(x=>x[1]),
         backgroundColor:'rgba(168,85,247,0.7)',borderRadius:4}]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false}},
+        plugins:{legend:{display:false},datalabels:{color:tc,font:{size:11},anchor:'end',align:'right',formatter:v=>v}},
         scales:{x:{ticks:{color:tc},grid:{color:gc},beginAtZero:true},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc}}}}});
   }
 }
@@ -1114,6 +1138,16 @@ let editingId=null;
 let sortCol=null, sortDir=1; // 1=asc, -1=desc
 
 function applyFilters() { currentPage=1; applyFilters_internal(); }
+
+function toggleActionsMenu(e) {
+  e.stopPropagation();
+  document.getElementById('actions-menu').classList.toggle('open');
+}
+function closeActionsMenu() {
+  document.getElementById('actions-menu')?.classList.remove('open');
+}
+document.addEventListener('click', () => closeActionsMenu());
+
 function changePerPage(val){ PER_PAGE=parseInt(val); currentPage=1; applyFilters_internal(); }
 
 function clearFilters(){
@@ -1259,7 +1293,7 @@ function updateSelectionUI() {
   const show=sel>0, isAdmin=currentRole==='admin';
   const bd=document.getElementById('btn-del-sel'); if(bd) bd.classList.toggle('hidden',!show||!isAdmin);
   const be=document.getElementById('btn-edit-sel'); if(be) be.classList.toggle('hidden',!show||!isAdmin);
-  const bl=document.getElementById('btn-dl-sel'); if(bl) bl.classList.toggle('hidden',!show);
+  const bl=document.getElementById('menu-dl-sel'); if(bl) bl.classList.toggle('hidden',!show);
 }
 
 // ══════════════════════════════════════════
