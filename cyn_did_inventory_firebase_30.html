@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CYN DID Inventory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<style>
+:root { --sf:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif; }
+[data-theme="dark"]{
+  --bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;--bg4:#2e2e2e;
+  --border:#333;--text:#f0f0f0;--text2:#aaa;--text3:#666;
+  --accent:#3b82f6;--accent2:#1d4ed8;
+  --green:#22c55e;--yellow:#eab308;--red:#ef4444;--purple:#a855f7;
+  --card-shadow:0 2px 12px rgba(0,0,0,0.5);
+}
+[data-theme="light"]{
+  --bg:#f5f5f7;--bg2:#ffffff;--bg3:#f0f0f2;--bg4:#e8e8ea;
+  --border:#d1d1d6;--text:#1d1d1f;--text2:#555;--text3:#999;
+  --accent:#0071e3;--accent2:#0051a2;
+  --green:#34c759;--yellow:#ff9f0a;--red:#ff3b30;--purple:#af52de;
+  --card-shadow:0 2px 12px rgba(0,0,0,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--sf);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;transition:background .3s,color .3s;}
+
+/* ── FULLSCREEN OVERLAYS ── */
+.screen{position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.screen.hidden{display:none!important;}
+
+/* spinner */
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.connecting-box{display:flex;flex-direction:column;align-items:center;gap:14px;}
+.connecting-box p{color:var(--text2);font-size:14px;}
+
+/* ── CARDS ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:36px 40px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.card h1{font-size:22px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+.card .subtitle{font-size:13px;color:var(--text3);margin-bottom:26px;}
+
+/* setup steps */
+.steps{margin-bottom:22px;}
+.step{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start;}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.step-text{font-size:12.5px;color:var(--text2);line-height:1.55;}
+.step-text a{color:var(--accent);text-decoration:none;}
+.step-text a:hover{text-decoration:underline;}
+.step-text strong{color:var(--text);}
+
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.sg-full{grid-column:1/-1;}
+.sg-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;}
+.sg-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-family:var(--sf);font-size:13px;outline:none;transition:.15s;}
+.sg-input:focus{border-color:var(--accent);}
+.err-msg{font-size:12px;color:var(--red);margin-bottom:10px;display:none;padding:8px 12px;background:rgba(239,68,68,.1);border-radius:8px;}
+
+/* ── TABS (setup / login) ── */
+.tab-row{display:flex;gap:0;margin-bottom:22px;background:var(--bg3);border-radius:10px;padding:3px;}
+.tab-btn{flex:1;padding:8px;border-radius:8px;border:none;font-family:var(--sf);font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text2);transition:.15s;}
+.tab-btn.active{background:var(--bg2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.2);}
+
+/* ── BTN ── */
+.btn{padding:8px 14px;border-radius:8px;border:none;font-family:var(--sf);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent2);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--bg4);}
+.btn-danger{background:#7f1d1d;color:#fca5a5;}
+.btn-danger:hover{background:#991b1b;}
+.btn-green{background:#14532d;color:#86efac;}
+.btn-green:hover{background:#166534;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-full{width:100%;justify-content:center;padding:12px;font-size:14px;font-weight:600;border-radius:10px;}
+
+/* ── ROLE BADGE ── */
+.role-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.role-admin{background:rgba(239,68,68,.15);color:var(--red);}
+.role-viewer{background:rgba(59,130,246,.15);color:var(--accent);}
+
+/* ── SIDEBAR ── */
+#sidebar{position:fixed;top:0;left:0;width:220px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:background .3s;}
+.sidebar-logo{padding:18px 18px 12px;border-bottom:1px solid var(--border);}
+.sidebar-logo h1{font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--accent);line-height:1.2;}
+.sidebar-logo p{font-size:11px;color:var(--text3);margin-top:2px;}
+.sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;animation:pulse 2s infinite;}
+.sync-dot.offline{background:var(--red);animation:none;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-section{padding:8px 0;}
+.nav-label{padding:6px 18px 3px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;cursor:pointer;color:var(--text2);font-size:13.5px;font-weight:500;border-left:3px solid transparent;transition:all .15s;}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--bg3);color:var(--accent);border-left-color:var(--accent);}
+.nav-item.disabled{opacity:.35;cursor:not-allowed;pointer-events:none;}
+.sidebar-bottom{margin-top:auto;padding:14px 18px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
+.user-chip{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.user-details{flex:1;min-width:0;}
+.user-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:10px;color:var(--text3);}
+.theme-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2);background:none;border:none;padding:0;font-family:var(--sf);}
+
+/* ── MAIN ── */
+#main{margin-left:220px;padding:24px;min-height:100vh;}
+.page{display:none;}.page.active{display:block;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
+.topbar h2{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+.topbar-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* stat */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;margin-bottom:22px;}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--card-shadow);transition:background .3s;}
+.stat-card .label{font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.5px;}
+.stat-card .value{font-size:26px;font-weight:700;margin-top:4px;}
+.c-blue{color:var(--accent)}.c-green{color:var(--green)}.c-yellow{color:var(--yellow)}.c-red{color:var(--red)}.c-purple{color:var(--purple)}
+
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:var(--card-shadow);margin-bottom:22px;transition:background .3s;}
+.chart-card h3{font-size:14px;font-weight:600;margin-bottom:16px;}
+.chart-wrap{height:220px;position:relative;}
+
+/* search */
+.search-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.search-input{flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-family:var(--sf);font-size:13px;outline:none;transition:.15s;}
+.search-input:focus{border-color:var(--accent);}
+.search-select{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-family:var(--sf);font-size:13px;outline:none;cursor:pointer;}
+
+/* table */
+.table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--card-shadow);transition:background .3s;}
+.table-toolbar{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.table-toolbar-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.table-scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:var(--bg3);}
+th{padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg3);}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--bg3);}
+tr.selected td{background:rgba(59,130,246,.08);}
+input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;}
+
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.2px;}
+.badge-active{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-available{background:rgba(59,130,246,.15);color:var(--accent)}
+.badge-reserved{background:rgba(234,179,8,.15);color:var(--yellow)}
+.badge-random{background:rgba(168,85,247,.15);color:var(--purple)}
+.badge-yes{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-no{background:rgba(239,68,68,.12);color:var(--red)}
+
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text2);flex-wrap:wrap;gap:8px;}
+.page-btns{display:flex;gap:4px;}
+.page-btn{padding:4px 9px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-family:var(--sf);}
+.page-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.page-btn:hover:not(.active){background:var(--bg4);}
+
+/* modals */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:100%;max-width:800px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);transition:background .3s;}
+.modal-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1;}
+.modal-header h3{font-size:16px;font-weight:600;}
+.modal-close{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:6px;font-family:var(--sf);}
+.modal-close:hover{background:var(--bg3);color:var(--text);}
+.modal-body{padding:20px 22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--bg2);}
+
+/* form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+.form-group label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;}
+.form-control{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:8px;font-family:var(--sf);font-size:13px;outline:none;transition:.15s;width:100%;}
+.form-control:focus{border-color:var(--accent);background:var(--bg2);}
+.form-control:disabled{opacity:.5;cursor:not-allowed;}
+.char-count{font-size:10px;color:var(--text3);text-align:right;}
+.section-title{font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;margin-top:6px;padding-bottom:6px;border-bottom:1px solid var(--border);grid-column:1/-1;}
+
+/* user mgmt table */
+.user-table{width:100%;border-collapse:collapse;font-size:13px;}
+.user-table th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);}
+.user-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);}
+.user-table tr:last-child td{border-bottom:none;}
+
+/* toast */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,.3);display:flex;align-items:center;gap:10px;animation:slideIn .25s ease;min-width:240px;max-width:320px;}
+.toast.success{border-left:3px solid var(--green)}.toast.error{border-left:3px solid var(--red)}.toast.info{border-left:3px solid var(--accent)}
+@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes flashRow{0%{background:rgba(59,130,246,.25)}100%{background:transparent}}
+.flash-update{animation:flashRow 1.2s ease;}
+
+.readonly-banner{background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);color:var(--yellow);padding:8px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.hidden{display:none!important;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px;}
+@media(max-width:700px){#sidebar{display:none}#main{margin-left:0;padding:12px}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP SCREEN ══ -->
+<div class="screen" id="screen-setup">
+  <div class="card" style="max-width:580px">
+    <h1>🔥 Firebase Setup</h1>
+    <p class="subtitle">One-time configuration — saved in your browser after this</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → <strong>Create a project</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Project Settings</strong> (⚙️) → <strong>Your apps</strong> → Add a <strong>Web app</strong> → Copy the config values below</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Firestore Database</strong> → Create database → <strong>Start in test mode</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Authentication</strong> → Get started → Enable <strong>Email/Password</strong> sign-in</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">After connecting, go to <strong>Settings → User Management</strong> inside this app to add your team</div></div>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">
+    <div class="setup-grid">
+      <div class="sg-full"><label class="sg-label">API Key</label><input class="sg-input" id="s-apikey" placeholder="AIzaSy..."></div>
+      <div><label class="sg-label">Auth Domain</label><input class="sg-input" id="s-authdomain" placeholder="project.firebaseapp.com"></div>
+      <div><label class="sg-label">Project ID</label><input class="sg-input" id="s-projectid" placeholder="your-project-id"></div>
+      <div><label class="sg-label">Storage Bucket</label><input class="sg-input" id="s-storagebucket" placeholder="project.appspot.com"></div>
+      <div><label class="sg-label">Messaging Sender ID</label><input class="sg-input" id="s-senderid" placeholder="123456789"></div>
+      <div class="sg-full"><label class="sg-label">App ID</label><input class="sg-input" id="s-appid" placeholder="1:123:web:abc"></div>
+    </div>
+    <div class="err-msg" id="setup-err"></div>
+    <button class="btn btn-primary btn-full" onclick="connectFirebase()">🔌 Connect to Firebase</button>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px">Config is saved locally — you won't need to enter this again</p>
+  </div>
+</div>
+
+<!-- ══ CONNECTING SCREEN ══ -->
+<div class="screen hidden" id="screen-connecting">
+  <div class="connecting-box"><div class="spinner"></div><p>Connecting to Firebase…</p></div>
+</div>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div class="screen hidden" id="screen-login">
+  <div class="card" style="max-width:400px">
+    <h1>CYN DID Inventory</h1>
+    <p class="subtitle">Sign in to continue</p>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="sg-label">Email</label>
+      <input class="sg-input" id="l-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')loginUser()">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="sg-label">Password</label>
+      <input class="sg-input" id="l-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')loginUser()">
+    </div>
+    <div class="err-msg" id="login-err"></div>
+    <button class="btn btn-primary btn-full" id="btn-login" onclick="loginUser()">Sign In</button>
+    <button style="background:none;border:none;color:var(--text3);font-size:11px;margin-top:12px;cursor:pointer;width:100%;font-family:var(--sf)" onclick="resetConfig()">⚙️ Change Firebase Config</button>
+  </div>
+</div>
+
+<!-- ══ SIDEBAR ══ -->
+<nav id="sidebar" style="display:none">
+  <div class="sidebar-logo">
+    <h1>CYN DID<br>Inventory</h1>
+    <p><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live Sync</span></p>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Menu</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard',this)">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard
+    </div>
+    <div class="nav-item" id="nav-inventory" onclick="showPage('inventory',this)">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Inventory
+    </div>
+    <div class="nav-item" id="nav-logs" onclick="showPage('logs',this)">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/><circle cx="17" cy="17" r="3"/><line x1="19" y1="19" x2="21" y2="21"/></svg>Logs
+      <span id="log-badge" style="margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;display:none">0</span>
+    </div>
+    <div class="nav-item hidden" id="nav-settings" onclick="showPage('settings',this)">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+    </div>
+    <div class="nav-item hidden" id="nav-users" onclick="showPage('users',this)">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Users
+    </div>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="user-chip">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-details">
+        <div class="user-name" id="user-name-display">Loading…</div>
+        <div class="user-role" id="user-role-display"></div>
+      </div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <span id="theme-icon">☀️</span><span id="theme-label">Light Mode</span>
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="signOutUser()" style="justify-content:center">🚪 Sign Out</button>
+  </div>
+</nav>
+
+<!-- ══ MAIN ══ -->
+<main id="main" style="display:none">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="topbar">
+      <h2>Dashboard</h2>
+      <span style="font-size:12px;color:var(--text3)" id="last-updated"></span>
+    </div>
+    <div class="stat-grid" id="stat-grid"></div>
+    <div class="chart-card">
+      <h3>📊 Activated vs Deactivated per Day (Last 14 Days)</h3>
+      <div class="chart-wrap"><canvas id="actChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>📦 Numbers by Status</h3>
+      <div class="chart-wrap" style="height:200px"><canvas id="statusChart"></canvas></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="chart-card">
+        <h3>👥 Top Clients</h3>
+        <div class="chart-wrap" style="height:220px"><canvas id="clientChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>📦 Top Products</h3>
+        <div class="chart-wrap" style="height:220px"><canvas id="productChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVENTORY -->
+  <div id="page-inventory" class="page">
+    <div class="topbar">
+      <h2>Inventory</h2>
+      <div class="topbar-actions" id="inv-actions">
+        <button class="btn btn-green admin-only" onclick="openAddModal()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Number
+        </button>
+        <button class="btn btn-secondary admin-only" onclick="triggerUpload()">⬆️ Upload CSV</button>
+        <button class="btn btn-secondary" onclick="downloadSampleCSV()">📄 Sample CSV</button>
+        <button class="btn btn-secondary" onclick="exportAllCSV()">⬇️ Export All</button>
+        <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
+      </div>
+    </div>
+    <div id="viewer-banner" class="readonly-banner hidden">
+      👁️ You are in <strong>Viewer</strong> mode — read-only access. Contact an Admin to make changes.
+    </div>
+    <div class="search-bar">
+      <input class="search-input" id="search-input" placeholder="🔍  Quick search…" oninput="applyFilters()">
+      <select class="search-select" id="filter-client" onchange="applyFilters()"><option value="">All Clients</option></select>
+      <select class="search-select" id="filter-status" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option>Available</option><option>Reserved</option><option>Active</option><option>Used as Random ANI</option>
+      </select>
+      <select class="search-select" id="filter-product" onchange="applyFilters()"><option value="">All Products</option></select>
+      <select class="search-select" id="filter-provider" onchange="applyFilters()"><option value="">All Providers</option></select>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <span style="font-size:11px;color:var(--text3);white-space:nowrap">Act. Date</span>
+        <input class="search-input" id="filter-date-start" type="date" title="Activation Date Start" style="width:145px;flex:none" onchange="applyFilters()">
+        <span style="font-size:11px;color:var(--text3)">–</span>
+        <input class="search-input" id="filter-date-end" type="date" title="Activation Date End" style="width:145px;flex:none" onchange="applyFilters()">
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btn-clear-filters" onclick="clearFilters()" title="Clear all filters &amp; selections" style="white-space:nowrap;flex-shrink:0">
+        ✕ Clear
+      </button>
+    </div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <span style="font-size:12px;color:var(--text2)" id="sel-info">0 selected</span>
+          <button class="btn btn-danger btn-sm hidden admin-only" id="btn-del-sel" onclick="deleteSelected()">🗑 Delete Selected</button>
+          <button class="btn btn-secondary btn-sm hidden admin-only" id="btn-edit-sel" onclick="bulkEditSelected()">✏️ Bulk Edit</button>
+          <button class="btn btn-secondary btn-sm hidden" id="btn-dl-sel" onclick="downloadSelectedCSV()">⬇️ Download Selected</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text3)" id="record-count"></span>
+          <select class="search-select" id="per-page-select" onchange="changePerPage(this.value)" style="font-size:12px;padding:4px 8px">
+            <option value="100">100 / page</option>
+            <option value="500">500 / page</option>
+            <option value="1000">1000 / page</option>
+            <option value="2000">2000 / page</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
+            <th>#</th><th>Client</th><th>Product</th><th>Number</th><th>Status</th><th>Remarks</th>
+            <th>OSF</th><th>MRC</th><th>OTRF</th><th>Posted</th><th>Ch.Fee</th><th>CPM</th>
+            <th>Effective Date</th><th>Activated</th><th>Provider</th>
+            <th>Arrival Date</th><th>Prov Act Date</th><th>Sessions</th>
+            <th>Prov OSF</th><th>Prov MRC</th><th>Prov CPM</th><th>Posted Date</th>
+            <th>Route Req By</th><th>Prev Clients</th><th>Deac Date</th>
+            <th>Actions</th>
+          </tr></thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="pag-info"></span>
+        <div class="page-btns" id="page-btns"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS (admin only) -->
+  <div id="page-settings" class="page">
+    <div class="topbar"><h2>Settings</h2></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
+      <div class="chart-card">
+        <h3 style="margin-bottom:14px">👥 Clients</h3>
+        <div id="client-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px"></div>
+        <div style="display:flex;gap:8px"><input class="form-control" id="new-client" placeholder="Add client…"><button class="btn btn-primary btn-sm" onclick="addClient()">Add</button></div>
+      </div>
+      <div class="chart-card">
+        <h3 style="margin-bottom:14px">📡 Providers</h3>
+        <div id="provider-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px"></div>
+        <div style="display:flex;gap:8px"><input class="form-control" id="new-provider" placeholder="Add provider…"><button class="btn btn-primary btn-sm" onclick="addProvider()">Add</button></div>
+      </div>
+      <div class="chart-card">
+        <h3 style="margin-bottom:14px">📦 Products</h3>
+        <div id="product-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px"><input class="form-control" id="new-product" placeholder="Add product…"><button class="btn btn-primary btn-sm" onclick="addProduct()">Add</button></div>
+      </div>
+      <div class="chart-card">
+        <h3 style="margin-bottom:14px">🧑 Route Requested By</h3>
+        <div id="route-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px"><input class="form-control" id="new-route" placeholder="Add person…"><button class="btn btn-primary btn-sm" onclick="addRoute()">Add</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USERS (admin only) -->
+  <div id="page-users" class="page">
+    <div class="topbar">
+      <h2>User Management</h2>
+      <button class="btn btn-green" onclick="openAddUserModal()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add User
+      </button>
+    </div>
+    <div class="chart-card" style="max-width:700px">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Users are created here and stored in Firestore. Passwords are managed via Firebase Authentication.</p>
+      <table class="user-table" id="user-table">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th>Actions</th></tr></thead>
+        <tbody id="user-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LOGS PAGE -->
+  <div id="page-logs" class="page">
+    <div class="topbar">
+      <h2>Logs</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select class="search-select" id="log-filter-action" onchange="filterLogs()">
+          <option value="">All Actions</option>
+          <option value="added">Added</option>
+          <option value="updated">Updated</option>
+          <option value="deleted">Deleted</option>
+          <option value="csv">CSV Import</option>
+          <option value="login">Login</option>
+        </select>
+        <input class="search-input" id="log-filter-date" type="date" onchange="filterLogs()" style="width:160px" title="Filter by date">
+        <button class="btn btn-secondary btn-sm" onclick="clearLogFilters()">✕ Clear</button>
+        <button class="btn btn-secondary btn-sm admin-only" onclick="exportLogsCSV()">⬇️ Export Logs</button>
+        <button class="btn btn-danger btn-sm admin-only" onclick="clearAllLogs()">🗑 Clear All Logs</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <span style="font-size:12px;color:var(--text2)" id="log-count"></span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>#</th>
+            <th>Date & Time</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Number</th>
+            <th>Details</th>
+          </tr></thead>
+          <tbody id="log-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="log-pag-info"></span>
+        <div class="page-btns" id="log-page-btns"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- RECORD MODAL -->
+<div class="modal-overlay hidden" id="record-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Number</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="section-title">Client Information</div>
+        <div class="form-group"><label>Client</label><select class="form-control" id="f-client"></select></div>
+        <div class="form-group"><label>Product *</label><select class="form-control" id="f-product"></select></div>
+        <div class="form-group"><label>Number *</label><input class="form-control" id="f-number" placeholder="e.g. +639XXXXXXX or 025322110x"></div>
+        <div class="form-group"><label>Status</label>
+          <select class="form-control" id="f-status"><option>Available</option><option>Reserved</option><option>Active</option><option>Used as Random ANI</option></select>
+        </div>
+        <div class="form-group full">
+          <label>Remarks (max 160)</label>
+          <textarea class="form-control" id="f-remarks" rows="2" maxlength="160" oninput="updateCharCount()"></textarea>
+          <div class="char-count"><span id="remarks-count">0</span>/160</div>
+        </div>
+        <div class="form-group"><label>OSF</label><input class="form-control" id="f-osf" type="number" step="0.01"></div>
+        <div class="form-group"><label>MRC</label><input class="form-control" id="f-mrc" type="number" step="0.01"></div>
+        <div class="form-group"><label>OTRF</label><input class="form-control" id="f-otrf" type="number" step="0.01"></div>
+        <div class="form-group"><label>Posted Status</label><select class="form-control" id="f-posted"><option>No</option><option>Yes</option></select></div>
+        <div class="form-group"><label>Channel Fee</label><input class="form-control" id="f-channelfee" type="number" step="0.01"></div>
+        <div class="form-group"><label>CPM / Usage per Min</label><input class="form-control" id="f-cpm" type="number" step="0.0001"></div>
+        <div class="form-group"><label>Effective Date</label><input class="form-control" id="f-effectivedate" type="date" onchange="syncActivated()"></div>
+        <div class="form-group"><label>Activated (Client)</label><input class="form-control" id="f-activated" type="date"></div>
+        <div class="section-title">Provider Information</div>
+        <div class="form-group"><label>Provider</label><select class="form-control" id="f-provider"></select></div>
+        <div class="form-group"><label>Arrival Date</label><input class="form-control" id="f-arrivaldate" type="date"></div>
+        <div class="form-group"><label>Prov Act Date</label><input class="form-control" id="f-activationdate" type="date"></div>
+        <div class="form-group"><label>Provider OSF</label><input class="form-control" id="f-provosf" type="number" step="0.01"></div>
+        <div class="form-group"><label>Provider MRC</label><input class="form-control" id="f-provmrc" type="number" step="0.01"></div>
+        <div class="form-group"><label>Prov CPM</label><input class="form-control" id="f-provcpm" type="number" step="0.0001"></div>
+        <div class="form-group"><label>Posted Date</label><input class="form-control" id="f-posteddate" type="date"></div>
+        <div class="form-group full">
+          <label>Sessions (max 160)</label>
+          <textarea class="form-control" id="f-sessions" rows="2" maxlength="160" oninput="updateSessionsCount()"></textarea>
+          <div class="char-count"><span id="sessions-count">0</span>/160</div>
+        </div>
+        <div class="section-title">Schedule & Routing</div>
+        <div class="form-group"><label>Schedule Charge (Hour)</label><input class="form-control" id="f-schedhr" type="number" min="0" max="23"></div>
+        <div class="form-group"><label>Schedule Charge (Min)</label><input class="form-control" id="f-schedmin" type="number" min="0" max="59"></div>
+        <div class="form-group"><label>Route Requested By</label><select class="form-control" id="f-routeby"></select></div>
+        <div class="section-title">Previous Owner</div>
+        <div class="form-group"><label>Previous Client</label><select class="form-control" id="f-prevclient"></select></div>
+        <div class="form-group"><label>Deac Date from Prev Owner</label><input class="form-control" id="f-deacdate" type="date"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRecord()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK EDIT MODAL -->
+<div class="modal-overlay hidden" id="bulk-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h3>Bulk Edit Selected</h3><button class="modal-close" onclick="closeBulkModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Only filled fields will be updated. Leave blank to skip.</p>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px">
+
+        <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;padding-bottom:6px;border-bottom:1px solid var(--border)">General</div>
+        <div class="form-group"><label>Client</label><select class="form-control" id="be-client"><option value="">— no change —</option></select></div>
+        <div class="form-group"><label>Product</label><select class="form-control" id="be-product"><option value="">— no change —</option></select></div>
+        <div class="form-group"><label>Status</label>
+          <select class="form-control" id="be-status"><option value="">— no change —</option><option>Available</option><option>Reserved</option><option>Active</option><option>Used as Random ANI</option></select>
+        </div>
+        <div class="form-group"><label>Posted Status</label>
+          <select class="form-control" id="be-posted"><option value="">— no change —</option><option>Yes</option><option>No</option></select>
+        </div>
+        <div class="form-group full"><label>Remarks</label><input class="form-control" id="be-remarks" placeholder="leave blank = no change" maxlength="160"></div>
+
+        <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;padding-bottom:6px;border-bottom:1px solid var(--border)">Client Pricing & Dates</div>
+        <div class="form-group"><label>OSF</label><input class="form-control" id="be-osf" type="number" step="0.01" placeholder="no change"></div>
+        <div class="form-group"><label>MRC</label><input class="form-control" id="be-mrc" type="number" step="0.01" placeholder="no change"></div>
+        <div class="form-group"><label>OTRF</label><input class="form-control" id="be-otrf" type="number" step="0.01" placeholder="no change"></div>
+        <div class="form-group"><label>CPM / Usage per Min</label><input class="form-control" id="be-cpm" type="number" step="0.0001" placeholder="no change"></div>
+        <div class="form-group"><label>Effective Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-effectivedate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-effectivedate-clear" style="width:13px;height:13px"> Clear</label></div></div>
+        <div class="form-group"><label>Activated Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-activated" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-activated-clear" style="width:13px;height:13px"> Clear</label></div></div>
+
+        <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;padding-bottom:6px;border-bottom:1px solid var(--border)">Provider</div>
+        <div class="form-group"><label>Provider</label><select class="form-control" id="be-provider"><option value="">— no change —</option></select></div>
+        <div class="form-group"><label>Prov OSF</label><input class="form-control" id="be-provosf" type="number" step="0.01" placeholder="no change"></div>
+        <div class="form-group"><label>Prov MRC</label><input class="form-control" id="be-provmrc" type="number" step="0.01" placeholder="no change"></div>
+        <div class="form-group"><label>Prov CPM</label><input class="form-control" id="be-provcpm" type="number" step="0.0001" placeholder="no change"></div>
+        <div class="form-group"><label>Posted Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-posteddate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-posteddate-clear" style="width:13px;height:13px"> Clear</label></div></div>
+        <div class="form-group"><label>Prov Act Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-activationdate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-activationdate-clear" style="width:13px;height:13px"> Clear</label></div></div>
+        <div class="form-group full"><label>Sessions</label><input class="form-control" id="be-sessions" placeholder="leave blank = no change" maxlength="160"></div>
+
+        <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;padding-bottom:6px;border-bottom:1px solid var(--border)">Routing & History</div>
+        <div class="form-group"><label>Route Requested By</label><select class="form-control" id="be-routeby"><option value="">— no change —</option></select></div>
+        <div class="form-group"><label>Deac Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-deacdate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-deacdate-clear" style="width:13px;height:13px"> Clear</label></div></div>
+        <div class="form-group full"><label>Add to Prev Clients</label><select class="form-control" id="be-prevclient"><option value="">— no change —</option></select></div>
+
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBulkModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="applyBulkEdit()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div class="modal-overlay hidden" id="user-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header"><h3 id="user-modal-title">Add User</h3><button class="modal-close" onclick="closeUserModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group full"><label>Full Name</label><input class="form-control" id="u-name" placeholder="Juan Dela Cruz"></div>
+        <div class="form-group full"><label>Email</label><input class="form-control" id="u-email" type="email" placeholder="juan@example.com"></div>
+        <div class="form-group full" id="u-password-group"><label>Password</label><input class="form-control" id="u-password" type="password" placeholder="Min 6 characters"></div>
+        <div class="form-group full"><label>Role</label>
+          <select class="form-control" id="u-role"><option value="viewer">Viewer (read-only)</option><option value="admin">Admin (full access)</option></select>
+        </div>
+      </div>
+      <div class="err-msg" id="user-err" style="margin-top:10px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-user" onclick="saveUser()">Add User</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay hidden" id="confirm-modal" style="z-index:600">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header"><h3>Confirm</h3><button class="modal-close" onclick="confirmResolve(false)">✕</button></div>
+    <div class="modal-body"><p id="confirm-msg" style="font-size:14px;line-height:1.5;color:var(--text)"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="confirmResolve(false)">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok-btn" onclick="confirmResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let db = null;
+let currentUser = null;   // Firebase auth user
+let currentRole = null;   // 'admin' | 'viewer'
+let currentUserName = ''; // display name from Firestore
+
+let DATA = [];
+let CLIENTS   = ['Didlogic','Toku','Twilio'];
+let PROVIDERS = ['7G','Didlogic','ETPI','Globe','M800','PLDT'];
+let PRODUCTS  = ['1800 LNS','ETPI SIP Trunk','Globe SIM','Globe SIP Toku-Fedex','Globe SIP Trunk',
+  'GURLAVI/TELAVI SIP TRUNK','PLDT FCS','PLDT FEX','PLDT ITFS/PH DID LNS',
+  'PLDT SIP Toku','PLDT SIP Trunk','PLDT SIP Trunk Cloudline','PLDT SIP Fedex',
+  'Smart DID LNS','Toku Pampanga Fedex'];
+let ROUTES    = ['Jason Cruz','Jem Santos','Jessa Lubiano','Katherine Serrano','Mark Deviente',
+  'Paul Fabella','Raffy Ching','Robert Pinote','Shayne Trinidad','Vi Quibingco'];
+
+let unsubRecords = null, unsubConfig = null;
+const sortArr = a => [...a].sort((x,y) => x.localeCompare(y));
+
+// ══════════════════════════════════════════
+//  FIREBASE SETUP
+// ══════════════════════════════════════════
+function connectFirebase() {
+  const apiKey    = v('s-apikey');
+  const authDomain= v('s-authdomain');
+  const projectId = v('s-projectid');
+  const storageBucket = v('s-storagebucket');
+  const messagingSenderId = v('s-senderid');
+  const appId     = v('s-appid');
+
+  if (!apiKey || !projectId) { showErr('setup-err','API Key and Project ID are required.'); return; }
+
+  const config = {apiKey,authDomain,projectId,storageBucket,messagingSenderId,appId};
+  localStorage.setItem('cyn_fb_config', JSON.stringify(config));
+  initFirebase(config);
+}
+
+function initFirebase(config) {
+  hide('screen-setup'); show('screen-connecting');
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(config);
+    db = firebase.firestore();
+    // Listen for auth state
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        loadUserProfile(user.uid);
+      } else {
+        hide('screen-connecting');
+        show('screen-login');
+      }
+    });
+  } catch(e) {
+    hide('screen-connecting'); show('screen-setup');
+    showErr('setup-err','Firebase error: ' + e.message);
+  }
+}
+
+async function loadUserProfile(uid) {
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    if (doc.exists) {
+      const data = doc.data();
+      currentRole = data.role || 'viewer';
+      currentUserName = data.name || currentUser.email;
+    } else {
+      // First-ever user becomes admin
+      currentRole = 'admin';
+      currentUserName = currentUser.email;
+      await db.collection('users').doc(uid).set({
+        name: currentUser.email, email: currentUser.email,
+        role: 'admin', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    startApp();
+  } catch(e) {
+    toast('Profile load error: ' + e.message, 'error');
+    firebase.auth().signOut();
+  }
+}
+
+// ══════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════
+async function loginUser() {
+  const email = v('l-email'), pass = v('l-password');
+  if (!email || !pass) { showErr('login-err','Email and password are required.'); return; }
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  hideErr('login-err');
+  try {
+    await firebase.auth().signInWithEmailAndPassword(email, pass);
+    // onAuthStateChanged fires → loadUserProfile → startApp
+    // Login log written in startApp after profile loads
+  } catch(e) {
+    showErr('login-err', friendlyAuthError(e.code));
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+async function signOutUser() {
+  if (!await appConfirm('Are you sure you want to sign out?', 'Sign Out')) return;
+  if (unsubRecords) unsubRecords();
+  if (unsubConfig) unsubConfig();
+  await firebase.auth().signOut();
+  hide('sidebar'); hide('main');
+  show('screen-login');
+  currentUser = null; currentRole = null;
+  const lb=document.getElementById('btn-login'); if(lb){lb.disabled=false;lb.textContent='Sign In';}
+  document.getElementById('l-email').value=''; document.getElementById('l-password').value='';
+}
+
+function resetConfig() {
+  localStorage.removeItem('cyn_fb_config');
+  location.reload();
+}
+
+function friendlyAuthError(code) {
+  const map = {
+    'auth/user-not-found':'No account found with that email.',
+    'auth/wrong-password':'Incorrect password.',
+    'auth/invalid-email':'Invalid email address.',
+    'auth/too-many-requests':'Too many attempts. Try again later.',
+    'auth/invalid-credential':'Incorrect email or password.'
+  };
+  return map[code] || 'Sign-in failed. Check your credentials.';
+}
+
+// ══════════════════════════════════════════
+//  APP START
+// ══════════════════════════════════════════
+function startApp() {
+  hide('screen-connecting'); hide('screen-login'); hide('screen-setup');
+  show('sidebar'); show('main');
+  // Reset login button state
+  const lb=document.getElementById('btn-login'); if(lb){lb.disabled=false;lb.textContent='Sign In';}
+  document.getElementById('l-email').value=''; document.getElementById('l-password').value='';
+  applyRoleUI();
+  listenRecords();
+  listenConfig();
+  listenLogs();
+  renderDashboard();
+  writeLog('login', currentUserName, `Signed in as ${currentRole}`);
+}
+
+function applyRoleUI() {
+  const isAdmin = currentRole === 'admin';
+
+  // Sidebar nav
+  if (isAdmin) { show('nav-settings'); show('nav-users'); }
+  else { hide('nav-settings'); hide('nav-users'); }
+
+  // Admin-only elements
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // Viewer banner
+  const vb = document.getElementById('viewer-banner');
+  if (vb) vb.classList.toggle('hidden', isAdmin);
+
+  // User chip
+  const avatar = document.getElementById('user-avatar');
+  const nameEl = document.getElementById('user-name-display');
+  const roleEl = document.getElementById('user-role-display');
+  if (avatar) avatar.textContent = (currentUserName||'?')[0].toUpperCase();
+  if (nameEl) nameEl.textContent = currentUserName;
+  if (roleEl) {
+    roleEl.innerHTML = `<span class="role-badge ${isAdmin?'role-admin':'role-viewer'}">${isAdmin?'Admin':'Viewer'}</span>`;
+  }
+}
+
+// ══════════════════════════════════════════
+//  FIRESTORE LISTENERS
+// ══════════════════════════════════════════
+function listenRecords() {
+  if (unsubRecords) unsubRecords();
+  unsubRecords = db.collection('records').orderBy('createdAt','asc')
+    .onSnapshot(snap => {
+      const prevIds = new Set(DATA.map(r=>r.id));
+      const DATE_FIELDS=['effectiveDate','activated','arrivalDate','activationDate','postedDate','deacDate'];
+      DATA = snap.docs.map(d=>{
+        const rec={id:d.id,_sel:false,...d.data()};
+        DATE_FIELDS.forEach(f=>{ if(rec[f]==='__BLANK__') rec[f]=''; else if(rec[f]) rec[f]=normalizeDate(String(rec[f])); });
+        // activationDate (Prov Act Date) and activated (Client Activated) are separate fields
+        return rec;
+      });
+      snap.docChanges().forEach(change => {
+        if ((change.type==='modified'||change.type==='added') && prevIds.has(change.doc.id)) {
+          setTimeout(()=>{
+            const row = document.getElementById('row-'+change.doc.id);
+            if(row){row.classList.add('flash-update');setTimeout(()=>row.classList.remove('flash-update'),1200);}
+          },100);
+        }
+      });
+      setSyncStatus(true);
+      applyFilters_internal();
+      if (document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+    }, ()=>setSyncStatus(false));
+}
+
+function listenConfig() {
+  if (unsubConfig) unsubConfig();
+  unsubConfig = db.collection('config').doc('lists').onSnapshot(doc => {
+    if (doc.exists) {
+      const d = doc.data();
+      if(d.clients)   CLIENTS   = d.clients;
+      if(d.providers) PROVIDERS = d.providers;
+      if(d.products)  PRODUCTS  = d.products;
+      if(d.routes)    ROUTES    = d.routes;
+      populateFilterDropdowns();
+      if(document.getElementById('page-settings')?.classList.contains('active')) renderSettings();
+    } else { saveConfig(); }
+  });
+}
+
+function saveConfig() {
+  db.collection('config').doc('lists').set({clients:CLIENTS,providers:PROVIDERS,products:PRODUCTS,routes:ROUTES})
+    .catch(e=>toast('Config save error: '+e.message,'error'));
+}
+
+function setSyncStatus(ok) {
+  const dot=document.getElementById('sync-dot'), lbl=document.getElementById('sync-label');
+  if(dot) dot.className='sync-dot'+(ok?'':' offline');
+  if(lbl) lbl.textContent=ok?'Live Sync':'Offline';
+}
+
+// ══════════════════════════════════════════
+//  THEME
+// ══════════════════════════════════════════
+function toggleTheme() {
+  const h=document.documentElement, isDark=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('theme-icon').textContent=isDark?'🌙':'☀️';
+  document.getElementById('theme-label').textContent=isDark?'Dark Mode':'Light Mode';
+  rebuildCharts();
+}
+
+// ══════════════════════════════════════════
+//  NAV
+// ══════════════════════════════════════════
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.add('active');
+  if(el) el.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='inventory') applyFilters_internal();
+  if(name==='settings')  renderSettings();
+  if(name==='users')     renderUsers();
+  if(name==='logs')      filterLogs();
+}
+
+// ══════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════
+let actChart=null, statusChart=null;
+
+function renderDashboard() {
+  const total=DATA.length, active=DATA.filter(r=>r.status==='Active').length,
+    available=DATA.filter(r=>r.status==='Available').length,
+    reserved=DATA.filter(r=>r.status==='Reserved').length,
+    random=DATA.filter(r=>r.status==='Used as Random ANI').length,
+    posted=DATA.filter(r=>r.posted==='Yes').length;
+  const sg=document.getElementById('stat-grid');
+  if(sg) sg.innerHTML=`
+    <div class="stat-card"><div class="label">Total</div><div class="value c-blue">${total}</div></div>
+    <div class="stat-card"><div class="label">Active</div><div class="value c-green">${active}</div></div>
+    <div class="stat-card"><div class="label">Available</div><div class="value c-blue">${available}</div></div>
+    <div class="stat-card"><div class="label">Reserved</div><div class="value c-yellow">${reserved}</div></div>
+    <div class="stat-card"><div class="label">Random ANI</div><div class="value c-purple">${random}</div></div>
+    <div class="stat-card"><div class="label">Posted</div><div class="value c-green">${posted}</div></div>`;
+  const lu=document.getElementById('last-updated');
+  if(lu) lu.textContent='Updated: '+new Date().toLocaleString();
+  rebuildCharts();
+}
+
+let clientChart=null, productChart=null;
+function rebuildCharts() {
+  if(actChart){actChart.destroy();actChart=null;}
+  if(statusChart){statusChart.destroy();statusChart=null;}
+  if(clientChart){clientChart.destroy();clientChart=null;}
+  if(productChart){productChart.destroy();productChart=null;}
+  const c1=document.getElementById('actChart'), c2=document.getElementById('statusChart');
+  if(!c1||!c2) return;
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const gc=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)', tc=isDark?'#aaa':'#555';
+  const days=[],ac=[],dc=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=d.toISOString().split('T')[0];
+    days.push(key.slice(5));
+    ac.push(DATA.filter(r=>r.activationDate===key).length);
+    dc.push(DATA.filter(r=>r.deacDate===key).length);
+  }
+  actChart=new Chart(c1.getContext('2d'),{type:'bar',data:{labels:days,datasets:[
+    {label:'Activated',data:ac,backgroundColor:'rgba(34,197,94,0.7)',borderRadius:4},
+    {label:'Deactivated',data:dc,backgroundColor:'rgba(239,68,68,0.6)',borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:tc,font:{size:12}}}},
+    scales:{x:{ticks:{color:tc},grid:{color:gc}},y:{ticks:{color:tc,stepSize:1},grid:{color:gc},beginAtZero:true}}}});
+  const sv=[DATA.filter(r=>r.status==='Active').length,DATA.filter(r=>r.status==='Available').length,
+    DATA.filter(r=>r.status==='Reserved').length,DATA.filter(r=>r.status==='Used as Random ANI').length];
+  statusChart=new Chart(c2.getContext('2d'),{type:'doughnut',data:{labels:['Active','Available','Reserved','Random ANI'],
+    datasets:[{data:sv,backgroundColor:['rgba(34,197,94,0.8)','rgba(59,130,246,0.8)','rgba(234,179,8,0.8)','rgba(168,85,247,0.8)'],
+    borderWidth:2,borderColor:isDark?'#1a1a1a':'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{color:tc,font:{size:12},padding:16}}}}});
+
+  // Top Clients chart
+  const clientCounts={};
+  DATA.forEach(r=>{if(r.client){clientCounts[r.client]=(clientCounts[r.client]||0)+1;}});
+  const clientSorted=Object.entries(clientCounts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const c3=document.getElementById('clientChart');
+  if(c3&&clientSorted.length){
+    clientChart=new Chart(c3.getContext('2d'),{type:'bar',
+      data:{labels:clientSorted.map(x=>x[0]),datasets:[{label:'Numbers',data:clientSorted.map(x=>x[1]),
+        backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{x:{ticks:{color:tc},grid:{color:gc},beginAtZero:true},y:{ticks:{color:tc},grid:{color:gc}}}}});
+  }
+
+  // Top Products chart
+  const prodCounts={};
+  DATA.forEach(r=>{if(r.product){prodCounts[r.product]=(prodCounts[r.product]||0)+1;}});
+  const prodSorted=Object.entries(prodCounts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const c4=document.getElementById('productChart');
+  if(c4&&prodSorted.length){
+    productChart=new Chart(c4.getContext('2d'),{type:'bar',
+      data:{labels:prodSorted.map(x=>x[0]),datasets:[{label:'Numbers',data:prodSorted.map(x=>x[1]),
+        backgroundColor:'rgba(168,85,247,0.7)',borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{x:{ticks:{color:tc},grid:{color:gc},beginAtZero:true},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc}}}}});
+  }
+}
+
+// ══════════════════════════════════════════
+//  TABLE
+// ══════════════════════════════════════════
+let filteredData=[], currentPage=1;
+let PER_PAGE=100;
+let editingId=null;
+
+function applyFilters() { currentPage=1; applyFilters_internal(); }
+function changePerPage(val){ PER_PAGE=parseInt(val); currentPage=1; applyFilters_internal(); }
+
+function clearFilters(){
+  document.getElementById('search-input').value='';
+  document.getElementById('filter-client').value='';
+  document.getElementById('filter-status').value='';
+  document.getElementById('filter-product').value='';
+  document.getElementById('filter-provider').value='';
+  document.getElementById('filter-date-start').value='';
+  document.getElementById('filter-date-end').value='';
+  // Unselect all
+  DATA.forEach(r=>r._sel=false);
+  const ca=document.getElementById('chk-all'); if(ca) ca.checked=false;
+  currentPage=1;
+  applyFilters_internal();
+  toast('Filters cleared','info');
+}
+
+function applyFilters_internal() {
+  const q=document.getElementById('search-input')?.value.toLowerCase()||'';
+  const client=document.getElementById('filter-client')?.value||'';
+  const status=document.getElementById('filter-status')?.value||'';
+  const product=document.getElementById('filter-product')?.value||'';
+  const provider=document.getElementById('filter-provider')?.value||'';
+  const dateStart=document.getElementById('filter-date-start')?.value||'';
+  const dateEnd=document.getElementById('filter-date-end')?.value||'';
+  filteredData=DATA.filter(r=>{
+    const mq=!q||[r.client,r.product,r.number,r.status,r.remarks,r.sessions,r.provider,r.routeBy,r.activationDate,r.postedDate,r.effectiveDate,r.arrivalDate].map(v=>String(v||'')).join(' ').toLowerCase().includes(q);
+    // Filter by activated (client activated date) — activationDate is Prov Act Date (separate)
+    const rawActDate = r.activated || r.effectiveDate || '';
+    const normActDate = rawActDate ? normalizeDate(String(rawActDate)) : '';
+    const matchDate = (!dateStart && !dateEnd) ||
+      (normActDate && (!dateStart || normActDate >= dateStart) && (!dateEnd || normActDate <= dateEnd));
+    return mq&&(!client||String(r.client||'').toLowerCase()===client.toLowerCase())&&(!status||String(r.status||'').toLowerCase()===status.toLowerCase())&&(!product||String(r.product||'').toLowerCase()===product.toLowerCase())&&(!provider||String(r.provider||'').toLowerCase()===provider.toLowerCase())&&matchDate;
+  });
+  populateFilterDropdowns();
+  renderRows();
+  renderPagination();
+  const rc=document.getElementById('record-count');
+  if(rc) rc.textContent=`${filteredData.length} record${filteredData.length!==1?'s':''}`;
+
+}
+
+function populateFilterDropdowns() {
+  const fillDrop=(id,arr)=>{
+    const el=document.getElementById(id); if(!el) return;
+    const cur=el.value;
+    el.innerHTML=el.options[0].outerHTML;
+    sortArr(arr).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;if(v===cur)o.selected=true;el.appendChild(o);});
+  };
+  fillDrop('filter-client',CLIENTS);
+  fillDrop('filter-product',PRODUCTS);
+  fillDrop('filter-provider',PROVIDERS);
+}
+
+function renderRows() {
+  const tbody=document.getElementById('inv-tbody'); if(!tbody) return;
+  const start=(currentPage-1)*PER_PAGE;
+  const pageData=filteredData.slice(start,start+PER_PAGE);
+  if(!pageData.length){tbody.innerHTML=`<tr><td colspan="26" style="text-align:center;padding:40px;color:var(--text3)">No records found</td></tr>`;return;}
+  const fmt=d=>{ if(!d||d===''||d==='__BLANK__') return ''; try{ const nd=normalizeDate(String(d)); const dt=new Date(nd+'T00:00:00'); return isNaN(dt.getTime())?'':dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){return '';} };
+  const isAdmin=currentRole==='admin';
+  tbody.innerHTML=pageData.map((r,idx)=>{
+    const sc={'Active':'badge-active','Available':'badge-available','Reserved':'badge-reserved','Used as Random ANI':'badge-random'}[r.status]||'';
+    const pc=r.posted==='Yes'?'badge-yes':'badge-no';
+    const actionBtns=isAdmin
+      ?`<button class="btn btn-secondary btn-sm" onclick="openEditModal('${r.id}')">✏️</button>
+         <button class="btn btn-danger btn-sm" onclick="deleteOne('${r.id}')">🗑</button>`
+      :`<span style="font-size:11px;color:var(--text3)">View only</span>`;
+    return `<tr id="row-${r.id}" class="${r._sel?'selected':''}">
+      <td><input type="checkbox" ${r._sel?'checked':''} onchange="toggleRow('${r.id}',this)"></td>
+      <td style="color:var(--text3)">${start+idx+1}</td>
+      <td>${r.client||''}</td><td title="${r.product||''}">${r.product||''}</td>
+      <td style="font-weight:600">${r.number||''}</td>
+      <td><span class="badge ${sc}">${r.status||''}</span></td>
+      <td title="${r.remarks||''}" style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.remarks||''}</td>
+      <td>${r.osf||''}</td><td>${r.mrc||''}</td><td>${r.otrf||''}</td>
+      <td><span class="badge ${pc}">${r.posted||'No'}</span></td>
+      <td>${r.channelfee||''}</td><td>${r.cpm||''}</td>
+      <td>${fmt(r.effectiveDate)}</td><td>${fmt(r.activated)}</td>
+      <td>${r.provider||''}</td><td>${fmt(r.arrivalDate)}</td><td>${fmt(r.activationDate)}</td>
+      <td title="${r.sessions||''}" style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.sessions||''}</td>
+      <td>${r.provosf||''}</td><td>${r.provmrc||''}</td><td>${r.provcpm||''}</td>
+      <td>${fmt(r.postedDate)}</td>
+      <td>${r.routeBy||''}</td><td title="${Array.isArray(r.prevClients)?r.prevClients.join(', '):(r.prevClient||'')}">${Array.isArray(r.prevClients)?r.prevClients.join(' → '):(r.prevClient||'')}</td><td>${fmt(r.deacDate)}</td>
+      <td><div style="display:flex;gap:4px">${actionBtns}</div></td>
+    </tr>`;
+  }).join('');
+  updateSelectionUI();
+}
+
+function renderPagination() {
+  const total=filteredData.length, pages=Math.ceil(total/PER_PAGE)||1;
+  const pi=document.getElementById('pag-info');
+  if(pi) pi.textContent=`Showing ${Math.min((currentPage-1)*PER_PAGE+1,total)}–${Math.min(currentPage*PER_PAGE,total)} of ${total}`;
+  const btns=document.getElementById('page-btns'); if(!btns) return;
+  btns.innerHTML='';
+  const addBtn=(label,pg,active)=>{const b=document.createElement('button');b.className='page-btn'+(active?' active':'');b.textContent=label;b.onclick=()=>{currentPage=pg;renderRows();renderPagination();};btns.appendChild(b);};
+  if(currentPage>1) addBtn('‹',currentPage-1,false);
+  const s=Math.max(1,currentPage-2),e=Math.min(pages,currentPage+2);
+  for(let i=s;i<=e;i++) addBtn(i,i,i===currentPage);
+  if(currentPage<pages) addBtn('›',currentPage+1,false);
+}
+
+function toggleAll(chk) {
+  const start=(currentPage-1)*PER_PAGE;
+  filteredData.slice(start,start+PER_PAGE).forEach(r=>{const rec=DATA.find(d=>d.id===r.id);if(rec)rec._sel=chk.checked;});
+  renderRows();
+}
+
+function toggleRow(id,chk) {
+  const rec=DATA.find(r=>r.id===id); if(rec) rec._sel=chk.checked;
+  updateSelectionUI();
+  const row=document.getElementById('row-'+id); if(row) row.classList.toggle('selected',chk.checked);
+}
+
+function updateSelectionUI() {
+  const sel=DATA.filter(r=>r._sel).length;
+  const si=document.getElementById('sel-info'); if(si) si.textContent=`${sel} selected`;
+  const show=sel>0, isAdmin=currentRole==='admin';
+  const bd=document.getElementById('btn-del-sel'); if(bd) bd.classList.toggle('hidden',!show||!isAdmin);
+  const be=document.getElementById('btn-edit-sel'); if(be) be.classList.toggle('hidden',!show||!isAdmin);
+  const bl=document.getElementById('btn-dl-sel'); if(bl) bl.classList.toggle('hidden',!show);
+}
+
+// ══════════════════════════════════════════
+//  CRUD
+// ══════════════════════════════════════════
+function guardAdmin() {
+  if(currentRole!=='admin'){toast('Admins only','error');return false;}
+  return true;
+}
+
+function buildFormSelects() {
+  const fill=(id,arr,blank)=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=blank?'<option value="">— Select —</option>':'';sortArr(arr).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);});};
+  fill('f-client',CLIENTS,true); fill('f-product',PRODUCTS,true);
+  fill('f-provider',PROVIDERS,true); fill('f-routeby',ROUTES,true);
+  const pc=document.getElementById('f-prevclient');
+  if(pc){pc.innerHTML='<option value=""></option>';sortArr(CLIENTS).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;pc.appendChild(o);});}
+}
+
+function openAddModal() {
+  if(!guardAdmin()) return;
+  editingId=null;
+  document.getElementById('modal-title').textContent='Add Number';
+  buildFormSelects(); clearForm();
+  document.getElementById('record-modal').classList.remove('hidden');
+}
+
+function openEditModal(id) {
+  if(!guardAdmin()) return;
+  editingId=id;
+  const r=DATA.find(d=>d.id===id); if(!r) return;
+  document.getElementById('modal-title').textContent='Edit Number';
+  buildFormSelects(); clearForm();
+  const set=(fid,val)=>{const el=document.getElementById(fid);if(el)el.value=val||'';};
+  set('f-client',r.client);set('f-product',r.product);set('f-number',r.number);
+  set('f-status',r.status);set('f-remarks',r.remarks);
+  set('f-osf',r.osf);set('f-mrc',r.mrc);set('f-otrf',r.otrf);
+  set('f-posted',r.posted);set('f-channelfee',r.channelfee);set('f-cpm',r.cpm);
+  set('f-effectivedate',r.effectiveDate);set('f-activated',r.activated);
+  set('f-provider',r.provider);set('f-arrivaldate',r.arrivalDate);
+  set('f-activationdate',r.activationDate);
+  set('f-provosf',r.provosf);set('f-provmrc',r.provmrc);set('f-provcpm',r.provcpm);
+  set('f-posteddate',r.postedDate);
+  set('f-schedhr',r.schedHr);set('f-schedmin',r.schedMin);
+  set('f-routeby',r.routeBy);set('f-deacdate',r.deacDate);set('f-sessions',r.sessions);
+  // Show last prevClient in dropdown
+  const lastPrev=Array.isArray(r.prevClients)?r.prevClients[r.prevClients.length-1]:(r.prevClient||'');
+  set('f-prevclient',lastPrev);
+  updateCharCount();
+  document.getElementById('record-modal').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('record-modal').classList.add('hidden'); }
+
+function clearForm() {
+  ['f-client','f-product','f-number','f-status','f-remarks','f-osf','f-mrc','f-otrf',
+   'f-posted','f-channelfee','f-cpm','f-effectivedate','f-activated','f-provider',
+   'f-arrivaldate','f-activationdate','f-provosf','f-provmrc','f-provcpm','f-posteddate',
+   'f-schedhr','f-schedmin','f-routeby','f-prevclient','f-deacdate','f-sessions'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value=el.tagName==='SELECT'?(el.options[0]?.value||''):'';
+  });
+  const rc=document.getElementById('remarks-count'); if(rc) rc.textContent='0';
+}
+
+function syncActivated() {
+  const ed=document.getElementById('f-effectivedate').value;
+  const act=document.getElementById('f-activated'); if(!act.value) act.value=ed;
+}
+
+function updateCharCount() {
+  const rc=document.getElementById('remarks-count');
+  if(rc) rc.textContent=(document.getElementById('f-remarks')?.value||'').length;
+}
+function updateSessionsCount() {
+  const sc=document.getElementById('sessions-count');
+  if(sc) sc.textContent=(document.getElementById('f-sessions')?.value||'').length;
+}
+
+async function saveRecord() {
+  if(!guardAdmin()) return;
+  const num=document.getElementById('f-number').value.trim();
+  if(!num){toast('Number is required','error');return;}
+  const get=id=>document.getElementById(id)?.value||'';
+  const rec={
+    client:get('f-client'),product:get('f-product'),number:num,
+    status:get('f-status'),remarks:get('f-remarks'),
+    osf:get('f-osf'),mrc:get('f-mrc'),otrf:get('f-otrf'),
+    posted:get('f-posted'),channelfee:get('f-channelfee'),cpm:get('f-cpm'),
+    effectiveDate:get('f-effectivedate'),activated:get('f-activated'),
+    provider:get('f-provider'),arrivalDate:get('f-arrivaldate'),activationDate:get('f-activationdate'),
+    provosf:get('f-provosf'),provmrc:get('f-provmrc'),provcpm:get('f-provcpm'),
+    postedDate:get('f-posteddate'),schedHr:get('f-schedhr'),schedMin:get('f-schedmin'),
+    routeBy:get('f-routeby'),deacDate:get('f-deacdate'),sessions:get('f-sessions'),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy:currentUserName
+  };
+  // Handle prevClients stacking
+  const newPrevClient=get('f-prevclient');
+  if(newPrevClient){
+    const existing=editingId?(Array.isArray(DATA.find(d=>d.id===editingId)?.prevClients)?DATA.find(d=>d.id===editingId).prevClients:(DATA.find(d=>d.id===editingId)?.prevClient?[DATA.find(d=>d.id===editingId).prevClient]:[])):[]; 
+    if(!existing.includes(newPrevClient)) existing.push(newPrevClient);
+    rec.prevClients=existing;
+  }
+  try {
+    if(editingId){
+      // Build diff — find what changed
+      const oldRec=DATA.find(d=>d.id===editingId)||{};
+      const fieldLabels={
+        client:'Client',product:'Product',number:'Number',status:'Status',
+        remarks:'Remarks',sessions:'Sessions',osf:'OSF',mrc:'MRC',otrf:'OTRF',posted:'Posted',
+        channelfee:'Ch.Fee',cpm:'CPM',effectiveDate:'Effective Date',
+        activated:'Activated',provider:'Provider',arrivalDate:'Arrival Date',
+        activationDate:'Prov Act Date',provosf:'Prov OSF',provmrc:'Prov MRC',
+        provcpm:'Prov CPM',postedDate:'Posted Date',schedHr:'Sched Hr',
+        schedMin:'Sched Min',routeBy:'Route By',deacDate:'Deac Date'
+      };
+      const changes=[];
+      Object.keys(fieldLabels).forEach(k=>{
+        const oldVal=String(oldRec[k]||'').trim();
+        const newVal=String(rec[k]||'').trim();
+        if(oldVal!==newVal) changes.push(`${fieldLabels[k]}: "${oldVal}" → "${newVal}"`);
+      });
+      const diffText=changes.length>0?changes.join(' | '):'No changes detected';
+      await db.collection('records').doc(editingId).update(rec);
+      writeLog('updated', rec.number, diffText);
+      toast('Record updated ✓','success');
+    } else {
+      rec.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+      rec.createdBy=currentUserName;
+      const newDoc=await db.collection('records').add(rec);
+      writeLog('added', rec.number, `Added new record`);
+      toast('Record added ✓','success');
+    }
+    closeModal();
+  } catch(e){ toast('Save error: '+e.message,'error'); }
+}
+
+async function deleteOne(id) {
+  if(!guardAdmin()) return;
+  if(!await appConfirm('Delete this record?','Delete')) return;
+  try {
+    const rec=DATA.find(r=>r.id===id);
+    await db.collection('records').doc(id).delete();
+    writeLog('deleted', rec?.number||id, `Deleted record`);
+    toast('Deleted','info');
+  }
+  catch(e){ toast('Delete error: '+e.message,'error'); }
+}
+
+async function deleteSelected() {
+  if(!guardAdmin()) return;
+  const sel=DATA.filter(r=>r._sel); if(!sel.length) return;
+  if(!await appConfirm(`Delete ${sel.length} record(s)?`,'Delete')) return;
+  try {
+    const batch=db.batch();
+    sel.forEach(r=>batch.delete(db.collection('records').doc(r.id)));
+    await batch.commit();
+    writeLog('deleted', `${sel.length} records`, `Bulk deleted ${sel.length} records`);
+    toast(`${sel.length} record(s) deleted`,'info');
+  } catch(e){ toast('Delete error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════
+//  BULK EDIT
+// ══════════════════════════════════════════
+function bulkEditSelected() {
+  if(!guardAdmin()) return;
+  const sel=DATA.filter(r=>r._sel); if(!sel.length){toast('No records selected','error');return;}
+  const fillBulk=(id,arr)=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.innerHTML='<option value="">— no change —</option><option value="__CLEAR__">— blank / clear —</option>';
+    sortArr(arr).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);});
+  };
+  fillBulk('be-client', CLIENTS);
+  fillBulk('be-product', PRODUCTS);
+  fillBulk('be-provider', PROVIDERS);
+  fillBulk('be-routeby', ROUTES);
+  fillBulk('be-prevclient', CLIENTS);
+  document.getElementById('bulk-modal').classList.remove('hidden');
+}
+function closeBulkModal(){
+  document.getElementById('bulk-modal').classList.add('hidden');
+  // Reset all checkboxes
+  document.querySelectorAll('#bulk-modal input[type="checkbox"]').forEach(el=>el.checked=false);
+  // Reset all date inputs
+  document.querySelectorAll('#bulk-modal input[type="date"]').forEach(el=>el.value='');
+  // Reset all number inputs
+  document.querySelectorAll('#bulk-modal input[type="number"]').forEach(el=>el.value='');
+  // Reset all text inputs
+  document.querySelectorAll('#bulk-modal input[type="text"], #bulk-modal input:not([type])').forEach(el=>el.value='');
+  // Reset all selects to first option
+  document.querySelectorAll('#bulk-modal select').forEach(el=>el.selectedIndex=0);
+  // Reset apply button
+  const applyBtn=document.querySelector('#bulk-modal .btn-primary');
+  if(applyBtn){applyBtn.disabled=false;applyBtn.textContent='Apply';}
+}
+async function applyBulkEdit() {
+  if(!guardAdmin()) return;
+  const applyBtn = document.querySelector('#bulk-modal .btn-primary');
+  if(applyBtn){ applyBtn.disabled=true; applyBtn.textContent='Applying…'; }
+  const status=document.getElementById('be-status')?.value||'';
+  const posted=document.getElementById('be-posted')?.value||'';
+  const rawClient=document.getElementById('be-client')?.value||'';
+  const rawProduct=document.getElementById('be-product')?.value||'';
+  const rawProvider=document.getElementById('be-provider')?.value||'';
+  const rawRouteby=document.getElementById('be-routeby')?.value||'';
+  const client   = rawClient   === '__CLEAR__' ? '' : rawClient;
+  const product  = rawProduct  === '__CLEAR__' ? '' : rawProduct;
+  const provider = rawProvider === '__CLEAR__' ? '' : rawProvider;
+  const routeby  = rawRouteby  === '__CLEAR__' ? '' : rawRouteby;
+  const effectiveDate=document.getElementById('be-effectivedate')?.value||'';
+  const beActivated=document.getElementById('be-activated')?.value||'';
+  const deacDate=document.getElementById('be-deacdate')?.value||'';
+  const bePosteddate=document.getElementById('be-posteddate')?.value||'';
+  const beActivationdate=document.getElementById('be-activationdate')?.value||'';
+  const beRemarks=document.getElementById('be-remarks')?.value||'';
+  const beSessions=document.getElementById('be-sessions')?.value||'';
+  const beOsf=document.getElementById('be-osf')?.value||'';
+  const beMrc=document.getElementById('be-mrc')?.value||'';
+  const beOtrf=document.getElementById('be-otrf')?.value||'';
+  const beCpm=document.getElementById('be-cpm')?.value||'';
+  const beProvosf=document.getElementById('be-provosf')?.value||'';
+  const beProvmrc=document.getElementById('be-provmrc')?.value||'';
+  const beProvcpm=document.getElementById('be-provcpm')?.value||'';
+  const addPrevClient=document.getElementById('be-prevclient')?.value||'';
+  const sel=DATA.filter(r=>r._sel); if(!sel.length) return;
+  try {
+    // Read clear checkboxes ONCE
+    const clrEffective=document.getElementById('be-effectivedate-clear')?.checked||false;
+    const clrActivated=document.getElementById('be-activated-clear')?.checked||false;
+    const clrDeac=document.getElementById('be-deacdate-clear')?.checked||false;
+    const clrPosted=document.getElementById('be-posteddate-clear')?.checked||false;
+    const clrProvAct=document.getElementById('be-activationdate-clear')?.checked||false;
+    // Use individual updates (not batch) so FieldValue.delete() works properly
+    const promises = sel.map(r => {
+      const upd={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUserName};
+      if(status) upd.status=status;
+      if(posted) upd.posted=posted;
+      if(client!==undefined&&(client||rawClient==='__CLEAR__')) upd.client=client;
+      if(product!==undefined&&(product||rawProduct==='__CLEAR__')) upd.product=product;
+      if(provider!==undefined&&(provider||rawProvider==='__CLEAR__')) upd.provider=provider;
+      if(routeby!==undefined&&(routeby||rawRouteby==='__CLEAR__')) upd.routeBy=routeby;
+      if(clrEffective) upd.effectiveDate=''; else if(effectiveDate) upd.effectiveDate=effectiveDate;
+      if(clrActivated) upd.activated=''; else if(beActivated) upd.activated=beActivated;
+      if(clrDeac) upd.deacDate=''; else if(deacDate) upd.deacDate=deacDate;
+      if(clrPosted) upd.postedDate=''; else if(bePosteddate) upd.postedDate=bePosteddate;
+      if(clrProvAct) upd.activationDate=''; else if(beActivationdate) upd.activationDate=beActivationdate;
+      if(beRemarks!=='') upd.remarks=beRemarks;
+      if(beSessions!=='') upd.sessions=beSessions;
+      if(beOsf!=='') upd.osf=beOsf;
+      if(beMrc!=='') upd.mrc=beMrc;
+      if(beOtrf!=='') upd.otrf=beOtrf;
+      if(beCpm!=='') upd.cpm=beCpm;
+      if(beProvosf!=='') upd.provosf=beProvosf;
+      if(beProvmrc!=='') upd.provmrc=beProvmrc;
+      if(beProvcpm!=='') upd.provcpm=beProvcpm;
+      if(addPrevClient) {
+        const existing=Array.isArray(r.prevClients)?r.prevClients:(r.prevClient?[r.prevClient]:[]);
+        if(!existing.includes(addPrevClient)) existing.push(addPrevClient);
+        upd.prevClients=existing;
+      }
+      // Only update if there's something besides metadata
+      const meaningfulKeys = Object.keys(upd).filter(k=>k!=='updatedAt'&&k!=='updatedBy');
+      if(meaningfulKeys.length===0) return Promise.resolve();
+      return db.collection('records').doc(r.id).update(upd);
+    });
+    await Promise.all(promises);
+    closeBulkModal();
+    const bulkFields=[];
+    if(status) bulkFields.push(`Status→${status}`);
+    if(posted) bulkFields.push(`Posted→${posted}`);
+    if(client) bulkFields.push(`Client→${client}`);
+    if(product) bulkFields.push(`Product→${product}`);
+    if(provider) bulkFields.push(`Provider→${provider}`);
+    if(routeby) bulkFields.push(`RouteBy→${routeby}`);
+    if(effectiveDate) bulkFields.push(`EffDate→${effectiveDate}`);
+    if(beActivated) bulkFields.push(`Activated→${beActivated}`);
+    if(deacDate) bulkFields.push(`DeacDate→${deacDate}`);
+    if(bePosteddate) bulkFields.push(`PostedDate→${bePosteddate}`);
+    if(beActivationdate) bulkFields.push(`ProvActDate→${beActivationdate}`);
+    if(beRemarks!=='') bulkFields.push(`Remarks→${beRemarks}`);
+    if(beSessions!=='') bulkFields.push(`Sessions→${beSessions}`);
+    if(beOsf!=='') bulkFields.push(`OSF→${beOsf}`);
+    if(beMrc!=='') bulkFields.push(`MRC→${beMrc}`);
+    if(beOtrf!=='') bulkFields.push(`OTRF→${beOtrf}`);
+    if(beCpm!=='') bulkFields.push(`CPM→${beCpm}`);
+    if(beProvosf!=='') bulkFields.push(`ProvOSF→${beProvosf}`);
+    if(beProvmrc!=='') bulkFields.push(`ProvMRC→${beProvmrc}`);
+    if(beProvcpm!=='') bulkFields.push(`ProvCPM→${beProvcpm}`);
+    if(addPrevClient) bulkFields.push(`AddPrevClient→${addPrevClient}`);
+    writeLog('updated', `${sel.length} records`, `Bulk edit (${sel.length} records): ${bulkFields.join(', ')}`);
+    toast(`${sel.length} records updated`,'success');
+  } catch(e){
+    toast('Bulk edit error: '+e.message,'error');
+    const applyBtn=document.querySelector('#bulk-modal .btn-primary');
+    if(applyBtn){applyBtn.disabled=false;applyBtn.textContent='Apply';}
+  }
+}
+
+// ══════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════
+function renderSettings() {
+  renderList('client-list',CLIENTS,'client');
+  renderList('provider-list',PROVIDERS,'provider');
+  renderList('product-list',PRODUCTS,'product');
+  renderList('route-list',ROUTES,'route');
+}
+function renderList(cid,arr,type){
+  const el=document.getElementById(cid); if(!el) return;
+  el.innerHTML=sortArr(arr).map(v=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--bg3);border-radius:6px;border:1px solid var(--border)">
+      <span style="font-size:13px">${v}</span>
+      <button class="btn btn-danger btn-sm" onclick="removeItem('${type}','${v.replace(/'/g,"\\'")}')">✕</button>
+    </div>`).join('');
+}
+function addClient(){addItem('client','new-client',CLIENTS);}
+function addProvider(){addItem('provider','new-provider',PROVIDERS);}
+function addProduct(){addItem('product','new-product',PRODUCTS);}
+function addRoute(){addItem('route','new-route',ROUTES);}
+function addItem(type,inputId,arr){
+  if(!guardAdmin()) return;
+  const input=document.getElementById(inputId), val=input.value.trim(); if(!val) return;
+  if(arr.includes(val)){toast('Already exists','error');return;}
+  arr.push(val); saveConfig(); input.value=''; toast(`${val} added`,'success');
+}
+async function removeItem(type,val){
+  if(!guardAdmin()) return;
+  if(!await appConfirm(`Remove "${val}"?`,'Remove')) return;
+  const map={client:CLIENTS,provider:PROVIDERS,product:PRODUCTS,route:ROUTES};
+  const arr=map[type], idx=arr.indexOf(val); if(idx>=0) arr.splice(idx,1);
+  saveConfig(); toast(`${val} removed`,'info');
+}
+
+// ══════════════════════════════════════════
+//  USER MANAGEMENT
+// ══════════════════════════════════════════
+let USERS=[], editingUserId=null;
+
+async function renderUsers() {
+  const snap=await db.collection('users').orderBy('createdAt','asc').get();
+  USERS=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const tbody=document.getElementById('user-tbody'); if(!tbody) return;
+  if(!USERS.length){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">No users yet</td></tr>`;return;}
+  tbody.innerHTML=USERS.map(u=>{
+    const isSelf=u.email===currentUser.email;
+    const roleHtml=`<span class="role-badge ${u.role==='admin'?'role-admin':'role-viewer'}">${u.role==='admin'?'Admin':'Viewer'}</span>`;
+    const date=u.createdAt?.toDate?u.createdAt.toDate().toLocaleDateString():'—';
+    return `<tr>
+      <td>${u.name||'—'}</td><td>${u.email||'—'}</td>
+      <td>${roleHtml}</td><td>${date}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${u.id}')">✏️ Edit</button>
+          ${!isSelf?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.email}')">🗑</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddUserModal() {
+  editingUserId=null;
+  document.getElementById('user-modal-title').textContent='Add User';
+  document.getElementById('u-name').value='';
+  document.getElementById('u-email').value='';
+  document.getElementById('u-password').value='';
+  document.getElementById('u-role').value='viewer';
+  document.getElementById('u-password-group').style.display='';
+  document.getElementById('btn-save-user').textContent='Add User';
+  hideErr('user-err');
+  document.getElementById('user-modal').classList.remove('hidden');
+}
+
+function openEditUserModal(id) {
+  const u=USERS.find(u=>u.id===id); if(!u) return;
+  editingUserId=id;
+  document.getElementById('user-modal-title').textContent='Edit User';
+  document.getElementById('u-name').value=u.name||'';
+  document.getElementById('u-email').value=u.email||'';
+  document.getElementById('u-password').value='';
+  document.getElementById('u-role').value=u.role||'viewer';
+  document.getElementById('u-password-group').style.display='none'; // can't change pw from here
+  document.getElementById('btn-save-user').textContent='Save Changes';
+  hideErr('user-err');
+  document.getElementById('user-modal').classList.remove('hidden');
+}
+
+function closeUserModal(){document.getElementById('user-modal').classList.add('hidden');}
+
+async function saveUser() {
+  const name=v('u-name'), email=v('u-email'), pass=v('u-password'), role=v('u-role');
+  hideErr('user-err');
+
+  if(editingUserId) {
+    // Edit existing — just update Firestore profile
+    if(!name){showErr('user-err','Name is required.');return;}
+    try {
+      await db.collection('users').doc(editingUserId).update({name,role,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      toast('User updated','success'); closeUserModal(); renderUsers();
+    } catch(e){ showErr('user-err',e.message); }
+    return;
+  }
+
+  // New user — create via Firebase Auth then save profile
+  if(!name||!email||!pass){showErr('user-err','Name, email and password are required.');return;}
+  if(pass.length<6){showErr('user-err','Password must be at least 6 characters.');return;}
+
+  const btn=document.getElementById('btn-save-user');
+  btn.disabled=true; btn.textContent='Creating…';
+
+  try {
+    // Create user in Firebase Auth using Admin REST API workaround:
+    // We use a secondary app instance to create the user without signing out current admin
+    const secondaryApp = firebase.initializeApp(firebase.app().options, 'secondary_'+Date.now());
+    const cred = await secondaryApp.auth().createUserWithEmailAndPassword(email, pass);
+    const newUid = cred.user.uid;
+    await secondaryApp.auth().signOut();
+    secondaryApp.delete();
+
+    // Save profile in Firestore
+    await db.collection('users').doc(newUid).set({
+      name, email, role,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy:currentUserName
+    });
+    toast(`${name} added as ${role}`,'success');
+    closeUserModal(); renderUsers();
+  } catch(e){
+    showErr('user-err', friendlyAuthError(e.code)||e.message);
+  } finally {
+    btn.disabled=false; btn.textContent='Add User';
+  }
+}
+
+async function deleteUser(id,email) {
+  if(!await appConfirm(`Remove user ${email}? They will no longer be able to log in.`,'Remove')) return;
+  try {
+    await db.collection('users').doc(id).delete();
+    toast('User removed from app. Note: their Firebase Auth account still exists — delete it in Firebase Console if needed.','info');
+    renderUsers();
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════
+//  CSV
+// ══════════════════════════════════════════
+const CSV_HEADERS=['client','product','number','status','remarks','sessions','osf','mrc','otrf','posted',
+  'channelfee','cpm','effectiveDate','activated','provider','arrivalDate',
+  'activationDate','provosf','provmrc','provcpm','postedDate','schedHr','schedMin',
+  'routeBy','prevClient','deacDate'];
+
+function toCSVRow(fields){return fields.map(f=>`"${String(f||'').replace(/"/g,'""')}"`).join(',');}
+function downloadSampleCSV(){
+  const rows=[CSV_HEADERS.join(','),
+    toCSVRow(['Toku','PLDT SIP Trunk','+639171234567','Active','Sample','100','50','200','No','10','0.05','2024-01-01','2024-01-01','PLDT','2024-01-01','2024-01-02','80','40','0.04','2024-01-05','8','0','Jason Cruz','',''])];
+  downloadText(rows.join('\n'),'cyn_sample.csv','text/csv'); toast('Sample CSV downloaded','info');
+}
+function exportAllCSV(){
+  const rows=[CSV_HEADERS.join(','),...DATA.map(r=>toCSVRow(CSV_HEADERS.map(h=>r[h])))];
+  downloadText(rows.join('\n'),`cyn_export_${datestamp()}.csv`,'text/csv'); toast(`Exported ${DATA.length} records`,'success');
+}
+function downloadSelectedCSV(){
+  const sel=DATA.filter(r=>r._sel); if(!sel.length){toast('No records selected','error');return;}
+  const rows=[CSV_HEADERS.join(','),...sel.map(r=>toCSVRow(CSV_HEADERS.map(h=>r[h])))];
+  downloadText(rows.join('\n'),`cyn_selected_${datestamp()}.csv`,'text/csv'); toast(`Downloaded ${sel.length} records`,'success');
+}
+function triggerUpload(){if(!guardAdmin())return;document.getElementById('csv-upload').click();}
+
+// ══════════════════════════════════════════
+//  DATE & TEXT NORMALIZERS FOR CSV UPLOAD
+// ══════════════════════════════════════════
+function normalizeDate(val) {
+  if (!val || !val.trim()) return '';
+  val = val.trim();
+
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+
+  // Excel serial number (e.g. 45123)
+  if (/^\d{5}$/.test(val)) {
+    const excelEpoch = new Date(1899, 11, 30);
+    const d = new Date(excelEpoch.getTime() + parseInt(val) * 86400000);
+    return d.toISOString().split('T')[0];
+  }
+
+  // Try to parse various formats
+  const formats = [
+    // MM/DD/YYYY or M/D/YYYY
+    { re: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, fn: m => `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}` },
+    // DD/MM/YYYY
+    { re: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, fn: m => `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` },
+    // MM-DD-YYYY
+    { re: /^(\d{1,2})-(\d{1,2})-(\d{4})$/, fn: m => `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}` },
+    // DD-MM-YYYY
+    { re: /^(\d{1,2})-(\d{1,2})-(\d{4})$/, fn: m => `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` },
+    // YYYY/MM/DD
+    { re: /^(\d{4})\/(\d{2})\/(\d{2})$/, fn: m => `${m[1]}-${m[2]}-${m[3]}` },
+    // MM/DD/YY
+    { re: /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/, fn: m => `${parseInt(m[3])>50?'19':'20'}${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}` },
+    // DD-Mon-YYYY e.g. 01-Jan-2024
+    { re: /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/, fn: m => { const months={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'}; return `${m[3]}-${months[m[2].toLowerCase()]||'01'}-${m[1].padStart(2,'0')}`; } },
+    // Month DD, YYYY e.g. January 1, 2024
+    { re: /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/, fn: m => { const months={january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12'}; return `${m[3]}-${months[m[1].toLowerCase()]||'01'}-${m[2].padStart(2,'0')}`; } },
+  ];
+
+  for (const fmt of formats) {
+    const match = val.match(fmt.re);
+    if (match) {
+      try {
+        const result = fmt.fn(match);
+        // Validate it's a real date
+        const d = new Date(result);
+        if (!isNaN(d.getTime())) return result;
+      } catch(e) {}
+    }
+  }
+
+  // Last resort: let JS parse it
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  } catch(e) {}
+
+  return val; // Return as-is if nothing works
+}
+
+function normalizeStatus(val) {
+  if (!val) return 'Available';
+  const map = {
+    'active': 'Active', 'available': 'Available',
+    'reserved': 'Reserved', 'used as random ani': 'Used as Random ANI',
+    'random ani': 'Used as Random ANI', 'random': 'Used as Random ANI'
+  };
+  return map[val.toLowerCase().trim()] || val.trim();
+}
+
+function normalizePosted(val) {
+  if (!val) return 'No';
+  return ['yes','y','1','true'].includes(val.toLowerCase().trim()) ? 'Yes' : 'No';
+}
+
+function normalizeTextField(val, list) {
+  if (!val) return '';
+  const lower = val.trim().toLowerCase();
+  const match = list.find(item => item.toLowerCase() === lower);
+  return match || val.trim();
+}
+
+async function handleCSVUpload(evt){
+  const file=evt.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    const allRows=parseCSVFull(e.target.result);
+    if(!allRows.length){toast('Empty or unreadable file','error');return;}
+    const headers=allRows[0];
+    let added=0, updated=0, skipped=[];
+
+    // Build a map of existing records by number (lowercase) -> doc id
+    const existingMap={};
+    DATA.forEach(r=>{ if(r.number) existingMap[r.number.toLowerCase().trim()]=r.id; });
+
+    let batch=db.batch(), cnt=0;
+
+    for(let ri=1;ri<allRows.length;ri++){
+      const vals=allRows[ri];
+      const rec={};
+      headers.forEach((h,i)=>{rec[h.trim()]=vals[i]?.trim()||'';});
+
+      if(!rec.number){
+        skipped.push({row:ri+1, data:vals.join(','), reason:'Missing number'});
+        continue;
+      }
+
+      // Normalize dates
+      ['effectiveDate','activated','arrivalDate','activationDate','postedDate','deacDate'].forEach(f=>{
+        if(rec[f]) rec[f]=normalizeDate(rec[f]);
+      });
+      // Normalize status, posted, client, product, provider
+      if(rec.status) rec.status=normalizeStatus(rec.status);
+      rec.posted=normalizePosted(rec.posted);
+      if(rec.client) rec.client=normalizeTextField(rec.client, CLIENTS);
+      if(rec.product) rec.product=normalizeTextField(rec.product, PRODUCTS);
+      if(rec.provider) rec.provider=normalizeTextField(rec.provider, PROVIDERS);
+
+      const existingId=existingMap[rec.number.toLowerCase().trim()];
+      if(existingId){
+        const upd={updatedAt:firebase.firestore.FieldValue.serverTimestamp(), updatedBy:currentUserName+' (CSV)'};
+        Object.keys(rec).forEach(k=>{ if(rec[k]!=='') upd[k]=rec[k]; });
+        batch.update(db.collection('records').doc(existingId), upd);
+        updated++;
+      } else {
+        rec.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+        rec.createdBy=currentUserName;
+        rec.updatedAt=firebase.firestore.FieldValue.serverTimestamp();
+        batch.set(db.collection('records').doc(), rec);
+        added++;
+      }
+      cnt++;
+      if(cnt>=400){await batch.commit();batch=db.batch();cnt=0;}
+    }
+    if(cnt>0) await batch.commit();
+
+    let msg=[];
+    if(added)   msg.push(`${added} added`);
+    if(updated) msg.push(`${updated} updated`);
+    if(skipped.length) msg.push(`${skipped.length} skipped`);
+    toast(`CSV Import: ${msg.join(', ')}`, (added||updated)>0?'success':'error');
+
+    // Show skipped entries modal if any
+    if(skipped.length) showSkippedModal(skipped);
+    writeLog('csv', `${added} added / ${updated} updated`, `CSV import: ${msg.join(', ')}`);
+  };
+  reader.readAsText(file); evt.target.value='';
+}
+
+function showSkippedModal(skipped){
+  let modal=document.getElementById('skipped-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='skipped-modal';
+    modal.className='modal-overlay';
+    modal.innerHTML=`
+      <div class="modal" style="max-width:700px">
+        <div class="modal-header">
+          <h3>⚠️ Skipped Entries (<span id="skip-count"></span>)</h3>
+          <button class="modal-close" onclick="document.getElementById('skipped-modal').classList.add('hidden')">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:12px;color:var(--text3);margin-bottom:14px">These rows were not imported. Common reasons: missing Number field, or malformed data.</p>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:var(--bg3)">
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--text3)">Row #</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--text3)">Reason</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);color:var(--text3)">Data Preview</th>
+              </tr></thead>
+              <tbody id="skip-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="exportSkippedCSV()">⬇️ Download Skipped</button>
+          <button class="btn btn-primary" onclick="document.getElementById('skipped-modal').classList.add('hidden')">Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('skip-count').textContent=skipped.length;
+  document.getElementById('skip-tbody').innerHTML=skipped.map(s=>`
+    <tr>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text3)">${s.row}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--red)">${s.reason}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.data}">${s.data}</td>
+    </tr>`).join('');
+  modal.classList.remove('hidden');
+  window._skippedData=skipped;
+}
+
+function exportSkippedCSV(){
+  if(!window._skippedData) return;
+  const rows=['Row,Reason,Data',...window._skippedData.map(s=>`${s.row},"${s.reason}","${s.data.replace(/"/g,'""')}"`)];
+  downloadText(rows.join('\n'),'skipped_entries.csv','text/csv');
+}
+function parseCSVFull(text){
+  // Full CSV parser that handles multi-line quoted cells, \r\n, commas in quotes
+  const rows=[];
+  let cur='', inQ=false, row=[];
+  // Normalize line endings
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(inQ && text[i+1]==='"'){cur+='"';i++;} // escaped quote
+      else inQ=!inQ;
+    } else if(ch===',' && !inQ){
+      row.push(cur.trim()); cur='';
+    } else if(ch==='\n' && !inQ){
+      row.push(cur.trim()); cur='';
+      if(row.some(v=>v!=='')) rows.push(row); // skip fully empty rows
+      row=[];
+    } else {
+      // Replace newlines inside quoted cells with a space
+      cur += (ch==='\n' && inQ)?' ':ch;
+    }
+  }
+  if(cur||row.length){ row.push(cur.trim()); if(row.some(v=>v!=='')) rows.push(row); }
+  return rows;
+}
+
+function parseCSVLine(line){
+  const result=[]; let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===','&&!inQ){result.push(cur);cur='';}
+    else cur+=c;
+  }
+  result.push(cur); return result;
+}
+function downloadText(text,filename,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=filename;a.click();}
+function datestamp(){return new Date().toISOString().split('T')[0];}
+
+
+// ══════════════════════════════════════════
+//  LOGS
+// ══════════════════════════════════════════
+let ALL_LOGS=[], filteredLogs=[], logPage=1;
+const LOG_PER_PAGE=50;
+let unsubLogs=null;
+
+function writeLog(action, number, details){
+  if(!db) return;
+  db.collection('logs').add({
+    action, number:String(number||''), details:String(details||''),
+    user: currentUserName||'Unknown',
+    role: currentRole||'',
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(()=>{});
+}
+
+function listenLogs(){
+  if(unsubLogs) unsubLogs();
+  unsubLogs=db.collection('logs').orderBy('timestamp','desc').limit(500)
+    .onSnapshot(snap=>{
+      ALL_LOGS=snap.docs.map(d=>({id:d.id,...d.data()}));
+      // Update badge
+      const badge=document.getElementById('log-badge');
+      if(badge){
+        const today=new Date().toISOString().split('T')[0];
+        const todayCount=ALL_LOGS.filter(l=>{
+          if(!l.timestamp) return false;
+          const d=l.timestamp.toDate?l.timestamp.toDate():new Date(l.timestamp);
+          return d.toISOString().split('T')[0]===today;
+        }).length;
+        badge.textContent=todayCount;
+        badge.style.display=todayCount>0?'':'none';
+      }
+      if(document.getElementById('page-logs')?.classList.contains('active')) filterLogs();
+    });
+}
+
+function filterLogs(){
+  const action=document.getElementById('log-filter-action')?.value||'';
+  const date=document.getElementById('log-filter-date')?.value||'';
+  filteredLogs=ALL_LOGS.filter(l=>{
+    const matchAction=!action||l.action===action;
+    const matchDate=!date||(l.timestamp&&(l.timestamp.toDate?l.timestamp.toDate():new Date(l.timestamp)).toISOString().split('T')[0]===date);
+    return matchAction&&matchDate;
+  });
+  logPage=1;
+  renderLogs();
+}
+
+function clearLogFilters(){
+  const la=document.getElementById('log-filter-action'); if(la) la.value='';
+  const ld=document.getElementById('log-filter-date'); if(ld) ld.value='';
+  filterLogs();
+}
+
+function renderLogs(){
+  const tbody=document.getElementById('log-tbody'); if(!tbody) return;
+  const start=(logPage-1)*LOG_PER_PAGE;
+  const pageData=filteredLogs.slice(start,start+LOG_PER_PAGE);
+  const lc=document.getElementById('log-count');
+  if(lc) lc.textContent=`${filteredLogs.length} log${filteredLogs.length!==1?'s':''}`;
+
+  const actionColors={
+    'added':'badge-active','updated':'badge-available',
+    'deleted':'badge-no','csv':'badge-reserved','login':'badge-random'
+  };
+  const actionIcons={
+    'added':'➕','updated':'✏️','deleted':'🗑','csv':'📂','login':'🔑'
+  };
+
+  if(!pageData.length){
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">No logs found</td></tr>`;
+  } else {
+    tbody.innerHTML=pageData.map((l,idx)=>{
+      const ts=l.timestamp?.toDate?l.timestamp.toDate():new Date(l.timestamp||Date.now());
+      const dateStr=ts.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      const timeStr=ts.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const badge=actionColors[l.action]||'badge-available';
+      const icon=actionIcons[l.action]||'•';
+      return `<tr>
+        <td style="color:var(--text3)">${start+idx+1}</td>
+        <td style="white-space:nowrap"><div style="font-size:12px">${dateStr}</div><div style="font-size:11px;color:var(--text3)">${timeStr}</div></td>
+        <td style="font-weight:500">${l.user||'—'}</td>
+        <td><span class="badge ${badge}">${icon} ${l.action||'—'}</span></td>
+        <td style="font-weight:600">${l.number||'—'}</td>
+        <td style="color:var(--text2);max-width:260px;overflow:hidden;text-overflow:ellipsis" title="${l.details||''}">${l.details||'—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Pagination
+  const total=filteredLogs.length, pages=Math.ceil(total/LOG_PER_PAGE)||1;
+  const pi=document.getElementById('log-pag-info');
+  if(pi) pi.textContent=`Showing ${Math.min((logPage-1)*LOG_PER_PAGE+1,total)}–${Math.min(logPage*LOG_PER_PAGE,total)} of ${total}`;
+  const btns=document.getElementById('log-page-btns'); if(!btns) return;
+  btns.innerHTML='';
+  const addBtn=(label,pg,active)=>{const b=document.createElement('button');b.className='page-btn'+(active?' active':'');b.textContent=label;b.onclick=()=>{logPage=pg;renderLogs();};btns.appendChild(b);};
+  if(logPage>1) addBtn('‹',logPage-1,false);
+  const s=Math.max(1,logPage-2),e=Math.min(pages,logPage+2);
+  for(let i=s;i<=e;i++) addBtn(i,i,i===logPage);
+  if(logPage<pages) addBtn('›',logPage+1,false);
+}
+
+function exportLogsCSV(){
+  const rows=['Timestamp,User,Role,Action,Number,Details',
+    ...filteredLogs.map(l=>{
+      const ts=l.timestamp?.toDate?l.timestamp.toDate():new Date(l.timestamp||Date.now());
+      return `"${ts.toLocaleString()}","${l.user||''}","${l.role||''}","${l.action||''}","${l.number||''}","${(l.details||'').replace(/"/g,'""')}"`;
+    })];
+  downloadText(rows.join('\n'),`cyn_logs_${datestamp()}.csv`,'text/csv');
+  toast('Logs exported','success');
+}
+
+async function clearAllLogs(){
+  if(!guardAdmin()) return;
+  if(!await appConfirm('Clear ALL logs? This cannot be undone.','Clear All')) return;
+  try{
+    const snap=await db.collection('logs').limit(400).get();
+    const batch=db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+    toast('Logs cleared','info');
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════
+//  CONFIRM DIALOG
+// ══════════════════════════════════════════
+let _confirmResolve=null;
+function appConfirm(msg,okLabel){
+  okLabel=okLabel||'Confirm';
+  return new Promise(function(resolve){
+    _confirmResolve=resolve;
+    document.getElementById('confirm-msg').textContent=msg;
+    document.getElementById('confirm-ok-btn').textContent=okLabel;
+    document.getElementById('confirm-modal').classList.remove('hidden');
+  });
+}
+function confirmResolve(val){
+  document.getElementById('confirm-modal').classList.add('hidden');
+  if(_confirmResolve){_confirmResolve(val);_confirmResolve=null;}
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+function toast(msg,type){
+  type=type||'info';
+  const el=document.createElement('div'); el.className='toast '+type;
+  el.innerHTML=`<span>${{success:'✅',error:'❌',info:'ℹ️'}[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),4000);
+}
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+function v(id){return document.getElementById(id)?.value.trim()||'';}
+function show(id){const el=document.getElementById(id);if(el){el.style.display='';el.classList.remove('hidden');}}
+function hide(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
+function showErr(id,msg){const el=document.getElementById(id);if(el){el.textContent=msg;el.style.display='block';}}
+function hideErr(id){const el=document.getElementById(id);if(el)el.style.display='none';}
+
+// ══════════════════════════════════════════
+//  AUTO-LOAD SAVED CONFIG
+// ══════════════════════════════════════════
+(function(){
+  const saved=localStorage.getItem('cyn_fb_config');
+  if(saved){
+    try{
+      const config=JSON.parse(saved);
+      document.getElementById('s-apikey').value=config.apiKey||'';
+      document.getElementById('s-authdomain').value=config.authDomain||'';
+      document.getElementById('s-projectid').value=config.projectId||'';
+      document.getElementById('s-storagebucket').value=config.storageBucket||'';
+      document.getElementById('s-senderid').value=config.messagingSenderId||'';
+      document.getElementById('s-appid').value=config.appId||'';
+      initFirebase(config);
+    }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
