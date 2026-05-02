@@ -881,7 +881,7 @@ function showPage(name, el) {
   document.getElementById('page-'+name)?.classList.add('active');
   if(el) el.classList.add('active');
   if(name==='dashboard') renderDashboard();
-  if(name==='inventory') applyFilters_internal();
+  if(name==='inventory'){ applyFilters_internal(); setTimeout(initResizableColumns,200); }
   if(name==='settings')  renderSettings();
   if(name==='users')     renderUsers();
   if(name==='logs')      filterLogs();
@@ -1981,6 +1981,138 @@ function initResizableColumns() {
   });
 }
 
+
+// ══════════════════════════════════════════
+//  SPREADSHEET CELL SELECTION
+// ══════════════════════════════════════════
+(function(){
+  let isDragging = false;
+  let startCell = null;
+  let selectedCells = new Set();
+
+  function getCellCoords(td) {
+    const row = td.parentElement;
+    const tbody = row.parentElement;
+    const rowIdx = Array.from(tbody.children).indexOf(row);
+    const colIdx = Array.from(row.children).indexOf(td);
+    return { rowIdx, colIdx };
+  }
+
+  function getAllCells(tbody) {
+    const cells = [];
+    Array.from(tbody.children).forEach(tr => {
+      cells.push(Array.from(tr.children));
+    });
+    return cells;
+  }
+
+  function selectRange(tbody, start, end) {
+    const allCells = getAllCells(tbody);
+    const minRow = Math.min(start.rowIdx, end.rowIdx);
+    const maxRow = Math.max(start.rowIdx, end.rowIdx);
+    const minCol = Math.min(start.colIdx, end.colIdx);
+    const maxCol = Math.max(start.colIdx, end.colIdx);
+
+    // Clear previous
+    tbody.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+    selectedCells.clear();
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let col = minCol; col <= maxCol; col++) {
+        const cell = allCells[r]?.[col];
+        if (cell && cell.tagName === 'TD') {
+          cell.classList.add('cell-selected');
+          selectedCells.add(cell);
+        }
+      }
+    }
+    return { minRow, maxRow, minCol, maxCol, allCells };
+  }
+
+  function getSelectedText(allCells, minRow, maxRow, minCol, maxCol) {
+    const rows = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      const cols = [];
+      for (let col = minCol; col <= maxCol; col++) {
+        const cell = allCells[r]?.[col];
+        // Skip checkbox column (col 0)
+        if (col === 0) continue;
+        cols.push(cell ? cell.innerText.trim() : '');
+      }
+      if (cols.length) rows.push(cols.join('\t'));
+    }
+    return rows.join('\n');
+  }
+
+  document.addEventListener('mousedown', e => {
+    const td = e.target.closest('#inv-table td');
+    if (!td || td.querySelector('input[type="checkbox"]') || td.querySelector('.btn')) return;
+    const tbody = document.getElementById('inv-tbody');
+    if (!tbody) return;
+
+    // Clear previous selection
+    tbody.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+    selectedCells.clear();
+
+    isDragging = true;
+    startCell = getCellCoords(td);
+    td.classList.add('cell-selected');
+    selectedCells.add(td);
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!isDragging || !startCell) return;
+    const td = e.target.closest('#inv-table td');
+    if (!td) return;
+    const tbody = document.getElementById('inv-tbody');
+    if (!tbody) return;
+    const endCell = getCellCoords(td);
+    selectRange(tbody, startCell, endCell);
+  });
+
+  document.addEventListener('mouseup', e => {
+    isDragging = false;
+  });
+
+  // Ctrl+C to copy selected cells
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedCells.size > 0) {
+      const tbody = document.getElementById('inv-tbody');
+      if (!tbody) return;
+      const allCells = getAllCells(tbody);
+
+      // Find range
+      let minRow=Infinity, maxRow=-Infinity, minCol=Infinity, maxCol=-Infinity;
+      selectedCells.forEach(cell => {
+        const coords = getCellCoords(cell);
+        minRow = Math.min(minRow, coords.rowIdx);
+        maxRow = Math.max(maxRow, coords.rowIdx);
+        minCol = Math.min(minCol, coords.colIdx);
+        maxCol = Math.max(maxCol, coords.colIdx);
+      });
+
+      const text = getSelectedText(allCells, minRow, maxRow, minCol, maxCol);
+      navigator.clipboard.writeText(text).then(() => {
+        toast('Copied ' + selectedCells.size + ' cell(s) to clipboard ✓', 'success');
+      }).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+        toast('Copied to clipboard ✓', 'success');
+      });
+      e.preventDefault();
+    }
+    // Escape to clear selection
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+      selectedCells.clear();
+    }
+  });
+})();
+
 // ══════════════════════════════════════════
 //  CONFIRM DIALOG
 // ══════════════════════════════════════════
@@ -2018,6 +2150,10 @@ function show(id){const el=document.getElementById(id);if(el){el.style.display='
 function hide(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
 function showErr(id,msg){const el=document.getElementById(id);if(el){el.textContent=msg;el.style.display='block';}}
 function hideErr(id){const el=document.getElementById(id);if(el)el.style.display='none';}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(initResizableColumns, 1000);
+});
 
 // ══════════════════════════════════════════
 //  AUTO-LOAD SAVED CONFIG
