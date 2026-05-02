@@ -342,19 +342,10 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <button class="btn btn-green admin-only" onclick="openAddModal()">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Number
         </button>
-        <div class="actions-dropdown">
-          <button class="btn btn-secondary" onclick="toggleActionsMenu(event)">
-            ⚙️ Actions
-            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="actions-menu" id="actions-menu">
-            <button class="actions-menu-item admin-only" onclick="triggerUpload();closeActionsMenu()">⬆️ Upload CSV</button>
-            <button class="actions-menu-item" onclick="downloadSampleCSV();closeActionsMenu()">📄 Sample CSV</button>
-            <hr class="actions-menu-divider">
-            <button class="actions-menu-item" onclick="exportAllCSV();closeActionsMenu()">⬇️ Export All</button>
-            <button class="actions-menu-item hidden" id="menu-dl-sel" onclick="downloadSelectedCSV();closeActionsMenu()">⬇️ Download Selected</button>
-          </div>
-        </div>
+        <button class="btn btn-secondary admin-only" onclick="triggerUpload()">⬆️ Upload CSV</button>
+        <button class="btn btn-secondary" onclick="downloadSampleCSV()">📄 Sample CSV</button>
+        <button class="btn btn-secondary" onclick="exportAllCSV()">⬇️ Export All</button>
+        <button class="btn btn-secondary hidden" id="btn-dl-sel" onclick="downloadSelectedCSV()">⬇️ Download Selected</button>
         <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
       </div>
     </div>
@@ -1300,7 +1291,7 @@ function updateSelectionUI() {
   const show=sel>0, isAdmin=currentRole==='admin';
   const bd=document.getElementById('btn-del-sel'); if(bd) bd.classList.toggle('hidden',!show||!isAdmin);
   const be=document.getElementById('btn-edit-sel'); if(be) be.classList.toggle('hidden',!show||!isAdmin);
-  const bl=document.getElementById('menu-dl-sel'); if(bl) bl.classList.toggle('hidden',!show);
+  const bl=document.getElementById('btn-dl-sel'); if(bl) bl.classList.toggle('hidden',!show);
 }
 
 // ══════════════════════════════════════════
