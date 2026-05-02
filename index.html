@@ -639,18 +639,74 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <div class="form-group full"><label>Remarks</label><input class="form-control" id="be-remarks" placeholder="leave blank = no change" maxlength="160"></div>
 
         <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;padding-bottom:6px;border-bottom:1px solid var(--border)">Client Pricing & Dates</div>
-        <div class="form-group"><label>OSF</label><input class="form-control" id="be-osf" type="number" step="0.01" placeholder="no change"></div>
-        <div class="form-group"><label>MRC</label><input class="form-control" id="be-mrc" type="number" step="0.01" placeholder="no change"></div>
-        <div class="form-group"><label>OTRF</label><input class="form-control" id="be-otrf" type="number" step="0.01" placeholder="no change"></div>
-        <div class="form-group"><label>CPM / Usage per Min</label><input class="form-control" id="be-cpm" type="number" step="0.0001" placeholder="no change"></div>
+        <div class="form-group"><label>OSF</label>
+          <input class="form-control" id="be-osf" list="be-osf-opts" placeholder="no change" autocomplete="off">
+          <datalist id="be-osf-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>MRC</label>
+          <input class="form-control" id="be-mrc" list="be-mrc-opts" placeholder="no change" autocomplete="off">
+          <datalist id="be-mrc-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>OTRF</label>
+          <input class="form-control" id="be-otrf" list="be-otrf-opts" placeholder="no change" autocomplete="off">
+          <datalist id="be-otrf-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>CPM / Usage per Min</label>
+          <input class="form-control" id="be-cpm" list="be-cpm-opts" placeholder="no change" autocomplete="off">
+          <datalist id="be-cpm-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
         <div class="form-group"><label>Effective Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-effectivedate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-effectivedate-clear" style="width:13px;height:13px"> Clear</label></div></div>
         <div class="form-group"><label>Activated Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-activated" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-activated-clear" style="width:13px;height:13px"> Clear</label></div></div>
 
         <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;padding-bottom:6px;border-bottom:1px solid var(--border)">Provider</div>
         <div class="form-group"><label>Provider</label><select class="form-control" id="be-provider"><option value="">— no change —</option></select></div>
-        <div class="form-group"><label>Prov OSF</label><input class="form-control" id="be-provosf" type="number" step="0.01" placeholder="no change"></div>
-        <div class="form-group"><label>Prov MRC</label><input class="form-control" id="be-provmrc" type="number" step="0.01" placeholder="no change"></div>
-        <div class="form-group"><label>Prov CPM</label><input class="form-control" id="be-provcpm" type="number" step="0.0001" placeholder="no change"></div>
+        <div class="form-group"><label>Prov OSF</label>
+          <input class="form-control" id="be-provosf" list="be-provosf-opts" placeholder="no change" autocomplete="off">
+          <datalist id="be-provosf-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>Prov MRC</label>
+          <input class="form-control" id="be-provmrc" list="be-provmrc-opts" placeholder="no change" autocomplete="off">
+          <datalist id="be-provmrc-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>Prov CPM</label>
+          <input class="form-control" id="be-provcpm" list="be-provcpm-opts" placeholder="no change" autocomplete="off">
+          <datalist id="be-provcpm-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
         <div class="form-group"><label>Posted Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-posteddate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-posteddate-clear" style="width:13px;height:13px"> Clear</label></div></div>
         <div class="form-group"><label>Prov Act Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-activationdate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-activationdate-clear" style="width:13px;height:13px"> Clear</label></div></div>
         <div class="form-group full"><label>Type</label><input class="form-control" id="be-sessions" placeholder="leave blank = no change" maxlength="160"></div>
