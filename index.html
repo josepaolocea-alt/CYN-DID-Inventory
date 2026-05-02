@@ -1140,7 +1140,23 @@ function openEditModal(id) {
   const r=DATA.find(d=>d.id===id); if(!r) return;
   document.getElementById('modal-title').textContent='Edit Number';
   buildFormSelects(); clearForm();
-  const set=(fid,val)=>{const el=document.getElementById(fid);if(el)el.value=val||'';};
+  const set=(fid,val)=>{
+    const el=document.getElementById(fid);
+    if(!el) return;
+    if(el.tagName==='SELECT'){
+      // Try exact match first
+      const opts=Array.from(el.options);
+      const exact=opts.find(o=>o.value===val);
+      if(exact){ el.value=val; return; }
+      // Try case-insensitive match
+      const ci=opts.find(o=>o.value.toLowerCase()===(val||'').toLowerCase());
+      if(ci){ el.value=ci.value; return; }
+      // If not found but has a value, add it temporarily
+      if(val){ const o=document.createElement('option');o.value=val;o.textContent=val;el.appendChild(o);el.value=val; }
+    } else {
+      el.value=val||'';
+    }
+  };
   set('f-client',r.client);set('f-product',r.product);set('f-number',r.number);
   set('f-status',r.status);set('f-remarks',r.remarks);
   set('f-osf',r.osf);set('f-mrc',r.mrc);set('f-otrf',r.otrf);
@@ -1944,43 +1960,44 @@ async function clearAllLogs(){
 function initResizableColumns() {
   const table = document.getElementById('inv-table');
   if (!table) return;
-  const headers = table.querySelectorAll('th');
-  headers.forEach(th => {
-    // Remove old resizer if exists
+  const ths = Array.from(table.querySelectorAll('th'));
+  ths.forEach((th, i) => {
+    // Remove old resizer
     const old = th.querySelector('.col-resizer');
     if (old) old.remove();
+    // Skip last column
+    if (i === ths.length - 1) return;
 
-    const resizer = document.createElement('div');
-    resizer.className = 'col-resizer';
-    th.appendChild(resizer);
+    const div = document.createElement('div');
+    div.className = 'col-resizer';
+    th.appendChild(div);
 
-    let startX, startWidth;
-
-    resizer.addEventListener('mousedown', e => {
-      startX = e.clientX;
-      startWidth = th.offsetWidth;
-      resizer.classList.add('active');
+    div.addEventListener('mousedown', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      const startX = e.pageX;
+      const startW = th.getBoundingClientRect().width;
+      div.classList.add('active');
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
 
-      const onMouseMove = e => {
-        const diff = e.clientX - startX;
-        const newWidth = Math.max(50, startWidth + diff);
-        th.style.width = newWidth + 'px';
-        th.style.minWidth = newWidth + 'px';
-      };
-
-      const onMouseUp = () => {
-        resizer.classList.remove('active');
+      function onMove(e) {
+        const w = Math.max(40, startW + e.pageX - startX);
+        th.style.minWidth = w + 'px';
+        th.style.width = w + 'px';
+        // Also set corresponding td width
+        const cells = table.querySelectorAll('tr td:nth-child(' + (i+1) + ')');
+        cells.forEach(td => { td.style.maxWidth = w + 'px'; });
+      }
+      function onUp() {
+        div.classList.remove('active');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-      };
-
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-      e.preventDefault();
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
     });
   });
 }
