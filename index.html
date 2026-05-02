@@ -199,6 +199,13 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px;}
 @media(max-width:700px){#sidebar{display:none}#main{margin-left:0;padding:12px}.form-grid{grid-template-columns:1fr}}
+
+  .actions-dropdown{position:relative;display:inline-block;}
+  .actions-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);min-width:180px;z-index:300;overflow:hidden;display:none;}
+  .actions-menu.open{display:block;}
+  .actions-menu-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text2);transition:.15s;border:none;background:none;width:100%;text-align:left;font-family:var(--sf);}
+  .actions-menu-item:hover{background:var(--bg3);color:var(--text);}
+  .actions-menu-divider{border:none;border-top:1px solid var(--border);margin:4px 0;}
 </style>
 </head>
 <body>
