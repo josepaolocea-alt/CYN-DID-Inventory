@@ -137,7 +137,7 @@ body{font-family:var(--sf);background:var(--bg);color:var(--text);min-height:100
 table{width:100%;border-collapse:collapse;font-size:13px;}
 thead tr{background:var(--bg3);}
 th{padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg3);}
-td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--bg3);}
 tr.selected td{background:rgba(59,130,246,.08);}
@@ -1059,13 +1059,13 @@ function renderRows() {
       <td>${r.client||''}</td><td title="${r.product||''}">${r.product||''}</td>
       <td style="font-weight:600">${r.number||''}</td>
       <td><span class="badge ${sc}">${r.status||''}</span></td>
-      <td title="${r.remarks||''}" style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.remarks||''}</td>
+      <td title="${r.remarks||''}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${r.remarks||''}</td>
       <td>${r.osf||''}</td><td>${r.mrc||''}</td><td>${r.otrf||''}</td>
       <td><span class="badge ${pc}">${r.posted||'No'}</span></td>
       <td>${r.channelfee||''}</td><td>${r.cpm||''}</td>
       <td>${fmt(r.effectiveDate)}</td><td>${fmt(r.activated)}</td>
       <td>${r.provider||''}</td><td>${fmt(r.arrivalDate)}</td><td>${fmt(r.activationDate)}</td>
-      <td title="${r.sessions||''}" style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.sessions||''}</td>
+      <td title="${r.sessions||''}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${r.sessions||''}</td>
       <td>${r.provosf||''}</td><td>${r.provmrc||''}</td><td>${r.provcpm||''}</td>
       <td>${fmt(r.postedDate)}</td>
       <td>${r.routeBy||''}</td><td title="${Array.isArray(r.prevClients)?r.prevClients.join(', '):(r.prevClient||'')}">${Array.isArray(r.prevClients)?r.prevClients.join(' → '):(r.prevClient||'')}</td><td>${fmt(r.deacDate)}</td>
@@ -1986,7 +1986,7 @@ function autoSizeColumns() {
     });
 
     // Cap at 320px, min 60px
-    maxW = Math.min(320, Math.max(60, maxW));
+    maxW = Math.min(400, Math.max(60, maxW));
     th.style.minWidth = maxW + 'px';
     th.style.width = maxW + 'px';
 
