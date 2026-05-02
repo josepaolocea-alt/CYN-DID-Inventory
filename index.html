@@ -526,21 +526,77 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
           <textarea class="form-control" id="f-remarks" rows="2" maxlength="160" oninput="updateCharCount()"></textarea>
           <div class="char-count"><span id="remarks-count">0</span>/160</div>
         </div>
-        <div class="form-group"><label>OSF</label><input class="form-control" id="f-osf" type="number" step="0.01"></div>
-        <div class="form-group"><label>MRC</label><input class="form-control" id="f-mrc" type="number" step="0.01"></div>
-        <div class="form-group"><label>OTRF</label><input class="form-control" id="f-otrf" type="number" step="0.01"></div>
+        <div class="form-group"><label>OSF</label>
+          <input class="form-control" id="f-osf" list="f-osf-opts" placeholder="0.00 or Waived/Free/NA/POC" autocomplete="off">
+          <datalist id="f-osf-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>MRC</label>
+          <input class="form-control" id="f-mrc" list="f-mrc-opts" placeholder="0.00 or Waived/Free/NA/POC" autocomplete="off">
+          <datalist id="f-mrc-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>OTRF</label>
+          <input class="form-control" id="f-otrf" list="f-otrf-opts" placeholder="0.00 or Waived/Free/NA/POC" autocomplete="off">
+          <datalist id="f-otrf-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
         <div class="form-group"><label>Posted Status</label><select class="form-control" id="f-posted"><option>No</option><option>Yes</option></select></div>
         <div class="form-group"><label>Channel Fee</label><input class="form-control" id="f-channelfee" type="number" step="0.01"></div>
-        <div class="form-group"><label>CPM / Usage per Min</label><input class="form-control" id="f-cpm" type="number" step="0.0001"></div>
+        <div class="form-group"><label>CPM / Usage per Min</label>
+          <input class="form-control" id="f-cpm" list="f-cpm-opts" placeholder="0.00 or Waived/Free/NA/POC" autocomplete="off">
+          <datalist id="f-cpm-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
         <div class="form-group"><label>Effective Date</label><input class="form-control" id="f-effectivedate" type="date" onchange="syncActivated()"></div>
         <div class="form-group"><label>Activated (Client)</label><input class="form-control" id="f-activated" type="date"></div>
         <div class="section-title">Provider Information</div>
         <div class="form-group"><label>Provider</label><select class="form-control" id="f-provider"></select></div>
         <div class="form-group"><label>Arrival Date</label><input class="form-control" id="f-arrivaldate" type="date"></div>
         <div class="form-group"><label>Prov Act Date</label><input class="form-control" id="f-activationdate" type="date"></div>
-        <div class="form-group"><label>Provider OSF</label><input class="form-control" id="f-provosf" type="number" step="0.01"></div>
-        <div class="form-group"><label>Provider MRC</label><input class="form-control" id="f-provmrc" type="number" step="0.01"></div>
-        <div class="form-group"><label>Prov CPM</label><input class="form-control" id="f-provcpm" type="number" step="0.0001"></div>
+        <div class="form-group"><label>Provider OSF</label>
+          <input class="form-control" id="f-provosf" list="f-provosf-opts" placeholder="0.00 or Waived/Free/NA/POC" autocomplete="off">
+          <datalist id="f-provosf-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>Provider MRC</label>
+          <input class="form-control" id="f-provmrc" list="f-provmrc-opts" placeholder="0.00 or Waived/Free/NA/POC" autocomplete="off">
+          <datalist id="f-provmrc-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
+        <div class="form-group"><label>Prov CPM</label>
+          <input class="form-control" id="f-provcpm" list="f-provcpm-opts" placeholder="0.00 or Waived/Free/NA/POC" autocomplete="off">
+          <datalist id="f-provcpm-opts">
+            <option value="Waived">
+            <option value="Free">
+            <option value="NA">
+            <option value="POC">
+          </datalist>
+        </div>
         <div class="form-group"><label>Posted Date</label><input class="form-control" id="f-posteddate" type="date"></div>
         <div class="form-group full">
           <label>Type (max 160)</label>
