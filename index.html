@@ -418,7 +418,10 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
 
   <!-- SETTINGS (admin only) -->
   <div id="page-settings" class="page">
-    <div class="topbar"><h2>Settings</h2></div>
+    <div class="topbar">
+      <h2>Settings</h2>
+      <button class="btn btn-secondary" onclick="downloadSettingsCSV()">⬇️ Download Lists as CSV</button>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
       <div class="chart-card">
         <h3 style="margin-bottom:14px">👥 Clients</h3>
@@ -1600,10 +1603,50 @@ function addItem(type,inputId,arr){
 }
 async function removeItem(type,val){
   if(!guardAdmin()) return;
-  if(!await appConfirm(`Remove "${val}"?`,'Remove')) return;
+
+  // Count records using this value
+  const fieldMap={client:'client',provider:'provider',product:'product',route:'routeBy'};
+  const field=fieldMap[type];
+  let usedCount=0;
+  if(field && DATA.length>0){
+    usedCount=DATA.filter(r=>String(r[field]||'').toLowerCase()===val.toLowerCase()).length;
+  }
+
+  // Build warning message
+  let msg=`Remove "${val}"?`;
+  if(usedCount>0){
+    const noun={client:'record',provider:'record',product:'record',route:'record'}[type]||'record';
+    msg=`⚠️ Warning: ${usedCount} ${noun}${usedCount!==1?'s':''} still use${usedCount===1?'s':''} "${val}" as ${type}.
+
+These records will keep the value but it will no longer appear in dropdowns.
+
+Are you sure you want to remove it?`;
+  }
+
+  if(!await appConfirm(msg,'Remove')) return;
   const map={client:CLIENTS,provider:PROVIDERS,product:PRODUCTS,route:ROUTES};
   const arr=map[type], idx=arr.indexOf(val); if(idx>=0) arr.splice(idx,1);
   saveConfig(); toast(`${val} removed`,'info');
+}
+
+
+function downloadSettingsCSV(){
+  const rows = [];
+  // Find max length
+  const maxLen = Math.max(CLIENTS.length, PROVIDERS.length, PRODUCTS.length, ROUTES.length);
+  // Header
+  rows.push('"Clients","Providers","Products","Route Requested By"');
+  // Data rows
+  for(let i=0; i<maxLen; i++){
+    rows.push([
+      sortArr(CLIENTS)[i]  || '',
+      sortArr(PROVIDERS)[i] || '',
+      sortArr(PRODUCTS)[i]  || '',
+      sortArr(ROUTES)[i]    || ''
+    ].map(v => `"${v.replace(/"/g,'""')}"`).join(','));
+  }
+  downloadText(rows.join('\n'), `cyn_settings_${datestamp()}.csv`, 'text/csv');
+  toast('Settings lists downloaded', 'success');
 }
 
 // ══════════════════════════════════════════
