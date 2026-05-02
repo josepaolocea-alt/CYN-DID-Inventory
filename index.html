@@ -344,7 +344,19 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
       👁️ You are in <strong>Viewer</strong> mode — read-only access. Contact an Admin to make changes.
     </div>
     <div class="search-bar">
-      <input class="search-input" id="search-input" placeholder="🔍  Quick search…" oninput="applyFilters()">
+      <div style="display:flex;gap:0;flex:1;min-width:200px">
+        <select class="search-select" id="search-field" onchange="applyFilters()" style="border-radius:8px 0 0 8px;border-right:none;flex-shrink:0;font-size:12px">
+          <option value="all">All Fields</option>
+          <option value="number">Number</option>
+          <option value="client">Client</option>
+          <option value="product">Product</option>
+          <option value="status">Status</option>
+          <option value="remarks">Remarks</option>
+          <option value="provider">Provider</option>
+          <option value="routeBy">Route By</option>
+        </select>
+        <input class="search-input" id="search-input" placeholder="🔍  Search… (use * as wildcard)" oninput="applyFilters()" style="border-radius:0 8px 8px 0;flex:1">
+      </div>
       <select class="search-select" id="filter-client" onchange="applyFilters()"><option value="">All Clients</option></select>
       <select class="search-select" id="filter-status" onchange="applyFilters()">
         <option value="">All Statuses</option>
@@ -1015,11 +1027,22 @@ function applyFilters_internal() {
   filteredData=DATA.filter(r=>{
     let mq=true;
     if(q){
-      const searchStr=[r.client,r.product,r.number,r.status,r.remarks,r.sessions,r.provider,r.routeBy,r.activationDate,r.postedDate,r.effectiveDate,r.arrivalDate].map(v=>String(v||'')).join(' ').toLowerCase();
+      const searchField=document.getElementById('search-field')?.value||'all';
+      const fieldMap={
+        number:String(r.number||''),
+        client:String(r.client||''),
+        product:String(r.product||''),
+        status:String(r.status||''),
+        remarks:String(r.remarks||''),
+        provider:String(r.provider||''),
+        routeBy:String(r.routeBy||''),
+      };
+      const searchStr = searchField==='all'
+        ? [r.client,r.product,r.number,r.status,r.remarks,r.sessions,r.provider,r.routeBy,r.activationDate,r.postedDate,r.effectiveDate,r.arrivalDate].map(v=>String(v||'')).join(' ').toLowerCase()
+        : (fieldMap[searchField]||'').toLowerCase();
       if(q.includes('*')){
-        // Wildcard: convert * to regex .*
-        const pattern=q.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*');
-        try{ mq=new RegExp(pattern).test(searchStr); }catch(e){ mq=searchStr.includes(q.replace(/\*/g,'')); }
+        const pattern='^'+q.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*')+'$';
+        try{ mq=new RegExp(pattern,'i').test(searchStr); }catch(e){ mq=searchStr.includes(q.replace(/\*/g,'')); }
       } else {
         mq=searchStr.includes(q);
       }
