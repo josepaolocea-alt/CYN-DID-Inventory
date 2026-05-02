@@ -401,7 +401,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
             <th>#</th><th>Client</th><th>Product</th><th>Number</th><th>Status</th><th>Remarks</th>
             <th>OSF</th><th>MRC</th><th>OTRF</th><th>Posted</th><th>Ch.Fee</th><th>CPM</th>
             <th>Effective Date</th><th>Activated</th><th>Provider</th>
-            <th>Arrival Date</th><th>Prov Act Date</th><th>Sessions</th>
+            <th>Arrival Date</th><th>Prov Act Date</th><th>Type</th>
             <th>Prov OSF</th><th>Prov MRC</th><th>Prov CPM</th><th>Posted Date</th>
             <th>Route Req By</th><th>Prev Clients</th><th>Deac Date</th>
             <th>Actions</th>
@@ -543,7 +543,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <div class="form-group"><label>Prov CPM</label><input class="form-control" id="f-provcpm" type="number" step="0.0001"></div>
         <div class="form-group"><label>Posted Date</label><input class="form-control" id="f-posteddate" type="date"></div>
         <div class="form-group full">
-          <label>Sessions (max 160)</label>
+          <label>Type (max 160)</label>
           <textarea class="form-control" id="f-sessions" rows="2" maxlength="160" oninput="updateSessionsCount()"></textarea>
           <div class="char-count"><span id="sessions-count">0</span>/160</div>
         </div>
@@ -597,7 +597,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <div class="form-group"><label>Prov CPM</label><input class="form-control" id="be-provcpm" type="number" step="0.0001" placeholder="no change"></div>
         <div class="form-group"><label>Posted Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-posteddate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-posteddate-clear" style="width:13px;height:13px"> Clear</label></div></div>
         <div class="form-group"><label>Prov Act Date</label><div style="display:flex;gap:6px;align-items:center"><input class="form-control" id="be-activationdate" type="date" style="flex:1"><label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red);white-space:nowrap;text-transform:none;letter-spacing:0"><input type="checkbox" id="be-activationdate-clear" style="width:13px;height:13px"> Clear</label></div></div>
-        <div class="form-group full"><label>Sessions</label><input class="form-control" id="be-sessions" placeholder="leave blank = no change" maxlength="160"></div>
+        <div class="form-group full"><label>Type</label><input class="form-control" id="be-sessions" placeholder="leave blank = no change" maxlength="160"></div>
 
         <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;padding-bottom:6px;border-bottom:1px solid var(--border)">Routing & History</div>
         <div class="form-group"><label>Route Requested By</label><select class="form-control" id="be-routeby"><option value="">— no change —</option></select></div>
@@ -1267,7 +1267,7 @@ async function saveRecord() {
       const oldRec=DATA.find(d=>d.id===editingId)||{};
       const fieldLabels={
         client:'Client',product:'Product',number:'Number',status:'Status',
-        remarks:'Remarks',sessions:'Sessions',osf:'OSF',mrc:'MRC',otrf:'OTRF',posted:'Posted',
+        remarks:'Remarks',sessions:'Type',osf:'OSF',mrc:'MRC',otrf:'OTRF',posted:'Posted',
         channelfee:'Ch.Fee',cpm:'CPM',effectiveDate:'Effective Date',
         activated:'Activated',provider:'Provider',arrivalDate:'Arrival Date',
         activationDate:'Prov Act Date',provosf:'Prov OSF',provmrc:'Prov MRC',
@@ -1439,7 +1439,7 @@ async function applyBulkEdit() {
     if(bePosteddate) bulkFields.push(`PostedDate→${bePosteddate}`);
     if(beActivationdate) bulkFields.push(`ProvActDate→${beActivationdate}`);
     if(beRemarks!=='') bulkFields.push(`Remarks→${beRemarks}`);
-    if(beSessions!=='') bulkFields.push(`Sessions→${beSessions}`);
+    if(beSessions!=='') bulkFields.push(`Type→${beSessions}`);
     if(beOsf!=='') bulkFields.push(`OSF→${beOsf}`);
     if(beMrc!=='') bulkFields.push(`MRC→${beMrc}`);
     if(beOtrf!=='') bulkFields.push(`OTRF→${beOtrf}`);
@@ -1605,7 +1605,7 @@ async function deleteUser(id,email) {
 // ══════════════════════════════════════════
 //  CSV
 // ══════════════════════════════════════════
-const CSV_HEADERS=['client','product','number','status','remarks','sessions','osf','mrc','otrf','posted',
+const CSV_HEADERS=['client','product','number','status','remarks','type','osf','mrc','otrf','posted',
   'channelfee','cpm','effectiveDate','activated','provider','arrivalDate',
   'activationDate','provosf','provmrc','provcpm','postedDate','schedHr','schedMin',
   'routeBy','prevClient','deacDate'];
@@ -1615,7 +1615,7 @@ function downloadSampleCSV(){
   // Note: numbers prefixed with ' to force Excel to treat as text (prevents scientific notation)
   const rows=[
     CSV_HEADERS.join(','),
-    toCSVRow(['Toku','PLDT SIP Trunk','+639171234567','Active','Sample active number','10 sessions','100','50','200','Yes','10','0.05','2024-01-01','2024-01-01','PLDT','2024-01-01','2024-01-02','80','40','0.04','2024-01-05','8','0','Jason Cruz','','']),
+    toCSVRow(['Toku','PLDT SIP Trunk','+639171234567','Active','Sample active number','SIP','100','50','200','Yes','10','0.05','2024-01-01','2024-01-01','PLDT','2024-01-01','2024-01-02','80','40','0.04','2024-01-05','8','0','Jason Cruz','','']),
     toCSVRow(['Didlogic','Globe SIP Trunk','288417000','Available','Ready to assign','','120','60','220','No','12','0.06','2024-02-01','2024-02-01','Globe','2024-02-01','2024-02-03','90','45','0.05','','9','0','Katherine Serrano','','']),
     toCSVRow(['Twilio','Smart DID LNS','285392154','Reserved','Reserved for client','','90','45','180','No','8','0.04','2024-03-01','2024-03-01','M800','2024-03-01','2024-03-05','70','35','0.03','','8','30','Shayne Trinidad','Toku','2024-02-28']),
     toCSVRow(['','PLDT FCS','0285392165','Active','','','110','55','210','No','11','0.055','2024-04-01','2024-04-01','7G','2024-04-01','','85','42','0.045','','8','0','Jem Santos','','']),
