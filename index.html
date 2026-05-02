@@ -1108,6 +1108,7 @@ function rebuildCharts() {
 let filteredData=[], currentPage=1;
 let PER_PAGE=100;
 let editingId=null;
+let sortCol=null, sortDir=1; // 1=asc, -1=desc
 
 function applyFilters() { currentPage=1; applyFilters_internal(); }
 function changePerPage(val){ PER_PAGE=parseInt(val); currentPage=1; applyFilters_internal(); }
@@ -1167,6 +1168,7 @@ function applyFilters_internal() {
     return mq&&(!client||String(r.client||'').toLowerCase()===client.toLowerCase())&&(!status||String(r.status||'').toLowerCase()===status.toLowerCase())&&(!product||String(r.product||'').toLowerCase()===product.toLowerCase())&&(!provider||String(r.provider||'').toLowerCase()===provider.toLowerCase())&&matchDate;
   });
   populateFilterDropdowns();
+  sortFilteredData();
   renderRows();
   renderPagination();
   const rc=document.getElementById('record-count');
@@ -1220,7 +1222,7 @@ function renderRows() {
     </tr>`;
   }).join('');
   updateSelectionUI();
-  setTimeout(() => { autoSizeColumns(); }, 80);
+  setTimeout(() => { autoSizeColumns(); initSortableHeaders(); }, 80);
 }
 
 function renderPagination() {
@@ -2005,11 +2007,13 @@ function listenLogs(){
       // Update badge
       const badge=document.getElementById('log-badge');
       if(badge){
-        const today=new Date().toISOString().split('T')[0];
+        const now=new Date();
+        const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
         const todayCount=ALL_LOGS.filter(l=>{
           if(!l.timestamp) return false;
           const d=l.timestamp.toDate?l.timestamp.toDate():new Date(l.timestamp);
-          return d.toISOString().split('T')[0]===today;
+          const ld=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+          return ld===today;
         }).length;
         badge.textContent=todayCount;
         badge.style.display=todayCount>0?'':'none';
@@ -2023,7 +2027,11 @@ function filterLogs(){
   const date=document.getElementById('log-filter-date')?.value||'';
   filteredLogs=ALL_LOGS.filter(l=>{
     const matchAction=!action||l.action===action;
-    const matchDate=!date||(l.timestamp&&(l.timestamp.toDate?l.timestamp.toDate():new Date(l.timestamp)).toISOString().split('T')[0]===date);
+    const matchDate=!date||(l.timestamp&&(()=>{
+      const d=l.timestamp.toDate?l.timestamp.toDate():new Date(l.timestamp);
+      const localDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      return localDate===date;
+    })());
     return matchAction&&matchDate;
   });
   logPage=1;
@@ -2152,6 +2160,71 @@ function autoSizeColumns() {
 
   // Re-init resizers after auto-size
   initResizableColumns();
+}
+
+
+// ══════════════════════════════════════════
+//  COLUMN SORTING
+// ══════════════════════════════════════════
+const SORT_FIELDS = [
+  null, null, // checkbox, #
+  'client','product','number','status','remarks',
+  'osf','mrc','otrf','posted','channelfee','cpm',
+  'effectiveDate','activated','provider','arrivalDate','activationDate',
+  'provosf','provmrc','provcpm','postedDate','type','routeBy','prevClients','deacDate',
+  null // actions
+];
+
+function initSortableHeaders() {
+  const table = document.getElementById('inv-table');
+  if (!table) return;
+  const ths = table.querySelectorAll('th');
+  ths.forEach((th, i) => {
+    const field = SORT_FIELDS[i];
+    if (!field) return;
+    th.classList.add('sortable');
+    th.addEventListener('click', (e) => {
+      // Don't sort if dragging resizer
+      if (e.target.classList.contains('col-resizer')) return;
+      if (sortCol === field) {
+        sortDir *= -1;
+      } else {
+        sortCol = field;
+        sortDir = 1;
+      }
+      // Update header classes
+      ths.forEach(t => { t.classList.remove('sort-asc','sort-desc'); });
+      th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+      // Re-render
+      currentPage = 1;
+      renderRows();
+      renderPagination();
+    });
+  });
+}
+
+function sortFilteredData() {
+  if (!sortCol) return;
+  const dateFields = ['effectiveDate','activated','arrivalDate','activationDate','postedDate','deacDate'];
+  const numFields = ['osf','mrc','otrf','cpm','channelfee','provosf','provmrc','provcpm'];
+  filteredData.sort((a, b) => {
+    let va = String(a[sortCol] || '').toLowerCase();
+    let vb = String(b[sortCol] || '').toLowerCase();
+    // Numeric sort
+    if (numFields.includes(sortCol)) {
+      const na = parseFloat(va) || 0;
+      const nb = parseFloat(vb) || 0;
+      return (na - nb) * sortDir;
+    }
+    // Date sort
+    if (dateFields.includes(sortCol)) {
+      const da = va ? new Date(va).getTime() : 0;
+      const db = vb ? new Date(vb).getTime() : 0;
+      return (da - db) * sortDir;
+    }
+    // String sort
+    return va.localeCompare(vb) * sortDir;
+  });
 }
 
 // ══════════════════════════════════════════
