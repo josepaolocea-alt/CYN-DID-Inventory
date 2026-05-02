@@ -885,7 +885,7 @@ function showPage(name, el) {
   document.getElementById('page-'+name)?.classList.add('active');
   if(el) el.classList.add('active');
   if(name==='dashboard') renderDashboard();
-  if(name==='inventory'){ applyFilters_internal(); setTimeout(initResizableColumns,200); }
+  if(name==='inventory'){ applyFilters_internal(); setTimeout(autoSizeColumns,300); }
   if(name==='settings')  renderSettings();
   if(name==='users')     renderUsers();
   if(name==='logs')      filterLogs();
@@ -1073,7 +1073,7 @@ function renderRows() {
     </tr>`;
   }).join('');
   updateSelectionUI();
-  setTimeout(initResizableColumns, 50);
+  setTimeout(() => { autoSizeColumns(); }, 80);
 }
 
 function renderPagination() {
@@ -1953,6 +1953,53 @@ async function clearAllLogs(){
   }catch(e){ toast('Error: '+e.message,'error'); }
 }
 
+
+
+// ══════════════════════════════════════════
+//  AUTO-SIZE COLUMNS BASED ON CONTENT
+// ══════════════════════════════════════════
+function autoSizeColumns() {
+  const table = document.getElementById('inv-table');
+  if (!table) return;
+  const ths = table.querySelectorAll('th');
+  const rows = table.querySelectorAll('tbody tr');
+
+  // Use a hidden canvas to measure text width
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = '13px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif';
+
+  ths.forEach((th, colIdx) => {
+    // Skip checkbox col (#0) and actions col (last)
+    if (colIdx === 0 || colIdx === ths.length - 1) return;
+
+    // Measure header width
+    let maxW = ctx.measureText(th.innerText).width + 32;
+
+    // Measure each cell in this column
+    rows.forEach(row => {
+      const td = row.cells[colIdx];
+      if (!td) return;
+      const text = td.title || td.innerText || '';
+      const w = ctx.measureText(text).width + 32;
+      if (w > maxW) maxW = w;
+    });
+
+    // Cap at 320px, min 60px
+    maxW = Math.min(320, Math.max(60, maxW));
+    th.style.minWidth = maxW + 'px';
+    th.style.width = maxW + 'px';
+
+    // Also update td max-width
+    rows.forEach(row => {
+      const td = row.cells[colIdx];
+      if (td) td.style.maxWidth = maxW + 'px';
+    });
+  });
+
+  // Re-init resizers after auto-size
+  initResizableColumns();
+}
 
 // ══════════════════════════════════════════
 //  RESIZABLE COLUMNS
