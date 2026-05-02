@@ -1069,6 +1069,7 @@ function renderRows() {
     </tr>`;
   }).join('');
   updateSelectionUI();
+  setTimeout(initResizableColumns, 50);
 }
 
 function renderPagination() {
@@ -1930,6 +1931,54 @@ async function clearAllLogs(){
     await batch.commit();
     toast('Logs cleared','info');
   }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+
+// ══════════════════════════════════════════
+//  RESIZABLE COLUMNS
+// ══════════════════════════════════════════
+function initResizableColumns() {
+  const table = document.getElementById('inv-table');
+  if (!table) return;
+  const headers = table.querySelectorAll('th');
+  headers.forEach(th => {
+    // Remove old resizer if exists
+    const old = th.querySelector('.col-resizer');
+    if (old) old.remove();
+
+    const resizer = document.createElement('div');
+    resizer.className = 'col-resizer';
+    th.appendChild(resizer);
+
+    let startX, startWidth;
+
+    resizer.addEventListener('mousedown', e => {
+      startX = e.clientX;
+      startWidth = th.offsetWidth;
+      resizer.classList.add('active');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMouseMove = e => {
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(50, startWidth + diff);
+        th.style.width = newWidth + 'px';
+        th.style.minWidth = newWidth + 'px';
+      };
+
+      const onMouseUp = () => {
+        resizer.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      e.preventDefault();
+    });
+  });
 }
 
 // ══════════════════════════════════════════
