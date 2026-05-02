@@ -1612,8 +1612,14 @@ const CSV_HEADERS=['client','product','number','status','remarks','sessions','os
 
 function toCSVRow(fields){return fields.map(f=>`"${String(f||'').replace(/"/g,'""')}"`).join(',');}
 function downloadSampleCSV(){
-  const rows=[CSV_HEADERS.join(','),
-    toCSVRow(['Toku','PLDT SIP Trunk','+639171234567','Active','Sample','100','50','200','No','10','0.05','2024-01-01','2024-01-01','PLDT','2024-01-01','2024-01-02','80','40','0.04','2024-01-05','8','0','Jason Cruz','',''])];
+  // Note: numbers prefixed with ' to force Excel to treat as text (prevents scientific notation)
+  const rows=[
+    CSV_HEADERS.join(','),
+    toCSVRow(['Toku','PLDT SIP Trunk','+639171234567','Active','Sample active number','10 sessions','100','50','200','Yes','10','0.05','2024-01-01','2024-01-01','PLDT','2024-01-01','2024-01-02','80','40','0.04','2024-01-05','8','0','Jason Cruz','','']),
+    toCSVRow(['Didlogic','Globe SIP Trunk','288417000','Available','Ready to assign','','120','60','220','No','12','0.06','2024-02-01','2024-02-01','Globe','2024-02-01','2024-02-03','90','45','0.05','','9','0','Katherine Serrano','','']),
+    toCSVRow(['Twilio','Smart DID LNS','285392154','Reserved','Reserved for client','','90','45','180','No','8','0.04','2024-03-01','2024-03-01','M800','2024-03-01','2024-03-05','70','35','0.03','','8','30','Shayne Trinidad','Toku','2024-02-28']),
+    toCSVRow(['','PLDT FCS','0285392165','Active','','','110','55','210','No','11','0.055','2024-04-01','2024-04-01','7G','2024-04-01','','85','42','0.045','','8','0','Jem Santos','','']),
+  ];
   downloadText(rows.join('\n'),'cyn_sample.csv','text/csv'); toast('Sample CSV downloaded','info');
 }
 function exportAllCSV(){
