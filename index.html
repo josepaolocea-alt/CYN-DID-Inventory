@@ -1013,7 +1013,17 @@ function applyFilters_internal() {
   const dateStart=document.getElementById('filter-date-start')?.value||'';
   const dateEnd=document.getElementById('filter-date-end')?.value||'';
   filteredData=DATA.filter(r=>{
-    const mq=!q||[r.client,r.product,r.number,r.status,r.remarks,r.sessions,r.provider,r.routeBy,r.activationDate,r.postedDate,r.effectiveDate,r.arrivalDate].map(v=>String(v||'')).join(' ').toLowerCase().includes(q);
+    let mq=true;
+    if(q){
+      const searchStr=[r.client,r.product,r.number,r.status,r.remarks,r.sessions,r.provider,r.routeBy,r.activationDate,r.postedDate,r.effectiveDate,r.arrivalDate].map(v=>String(v||'')).join(' ').toLowerCase();
+      if(q.includes('*')){
+        // Wildcard: convert * to regex .*
+        const pattern=q.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*');
+        try{ mq=new RegExp(pattern).test(searchStr); }catch(e){ mq=searchStr.includes(q.replace(/\*/g,'')); }
+      } else {
+        mq=searchStr.includes(q);
+      }
+    }
     // Filter by activated (client activated date) — activationDate is Prov Act Date (separate)
     const rawActDate = r.activated || r.effectiveDate || '';
     const normActDate = rawActDate ? normalizeDate(String(rawActDate)) : '';
