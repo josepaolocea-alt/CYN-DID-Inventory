@@ -345,7 +345,6 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <button class="btn btn-secondary admin-only" onclick="triggerUpload()">⬆️ Upload CSV</button>
         <button class="btn btn-secondary" onclick="downloadSampleCSV()">📄 Sample CSV</button>
         <button class="btn btn-secondary" onclick="exportAllCSV()">⬇️ Export All</button>
-        <button class="btn btn-secondary hidden" id="btn-dl-sel" onclick="downloadSelectedCSV()">⬇️ Download Selected</button>
         <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
       </div>
     </div>
@@ -389,6 +388,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
           <span style="font-size:12px;color:var(--text2)" id="sel-info">0 selected</span>
           <button class="btn btn-danger btn-sm hidden admin-only" id="btn-del-sel" onclick="deleteSelected()">🗑 Delete Selected</button>
           <button class="btn btn-secondary btn-sm hidden admin-only" id="btn-edit-sel" onclick="bulkEditSelected()">✏️ Bulk Edit</button>
+          <button class="btn btn-secondary btn-sm hidden" id="btn-dl-sel" onclick="downloadSelectedCSV()">⬇️ Download Selected</button>
 
         </div>
         <div style="display:flex;align-items:center;gap:8px">
