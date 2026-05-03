@@ -142,7 +142,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;}
 thead tr{background:var(--bg3);}
 th{padding:9px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;position:relative;}
 th:hover{color:var(--text);}
-td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:cell;user-select:none;}
+td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--bg3);}
 tr.selected td{background:rgba(59,130,246,.08);}
@@ -2354,131 +2354,101 @@ function initResizableColumns() {
 
 // ══════════════════════════════════════════
 //  SPREADSHEET CELL SELECTION
+//  Hold Alt (Option) + drag to select cells
+//  Or Ctrl+Click a cell to start selection
 // ══════════════════════════════════════════
 (function(){
   let isDragging = false;
   let startCell = null;
   let selectedCells = new Set();
+  let selectionMode = false;
 
-  function getCellCoords(td) {
+  function getCoords(td) {
     const row = td.parentElement;
     const tbody = row.parentElement;
-    const rowIdx = Array.from(tbody.children).indexOf(row);
-    const colIdx = Array.from(row.children).indexOf(td);
-    return { rowIdx, colIdx };
+    return { r: Array.from(tbody.children).indexOf(row), c: Array.from(row.children).indexOf(td) };
   }
 
-  function getAllCells(tbody) {
-    const cells = [];
-    Array.from(tbody.children).forEach(tr => {
-      cells.push(Array.from(tr.children));
-    });
-    return cells;
+  function getAllCells() {
+    const tbody = document.getElementById('inv-tbody');
+    if (!tbody) return [];
+    return Array.from(tbody.children).map(tr => Array.from(tr.children));
   }
 
-  function selectRange(tbody, start, end) {
-    const allCells = getAllCells(tbody);
-    const minRow = Math.min(start.rowIdx, end.rowIdx);
-    const maxRow = Math.max(start.rowIdx, end.rowIdx);
-    const minCol = Math.min(start.colIdx, end.colIdx);
-    const maxCol = Math.max(start.colIdx, end.colIdx);
-
-    // Clear previous
-    tbody.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+  function selectRange(start, end) {
+    const allCells = getAllCells();
+    const minR=Math.min(start.r,end.r), maxR=Math.max(start.r,end.r);
+    const minC=Math.min(start.c,end.c), maxC=Math.max(start.c,end.c);
+    document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
     selectedCells.clear();
-
-    for (let r = minRow; r <= maxRow; r++) {
-      for (let col = minCol; col <= maxCol; col++) {
-        const cell = allCells[r]?.[col];
-        if (cell && cell.tagName === 'TD') {
-          cell.classList.add('cell-selected');
-          selectedCells.add(cell);
-        }
-      }
+    for (let r=minR; r<=maxR; r++) for (let col=minC; col<=maxC; col++) {
+      const cell = allCells[r]?.[col];
+      if (cell && cell.tagName==='TD') { cell.classList.add('cell-selected'); selectedCells.add(cell); }
     }
-    return { minRow, maxRow, minCol, maxCol, allCells };
-  }
-
-  function getSelectedText(allCells, minRow, maxRow, minCol, maxCol) {
-    const rows = [];
-    for (let r = minRow; r <= maxRow; r++) {
-      const cols = [];
-      for (let col = minCol; col <= maxCol; col++) {
-        const cell = allCells[r]?.[col];
-        // Skip checkbox column (col 0)
-        if (col === 0) continue;
-        cols.push(cell ? cell.innerText.trim() : '');
-      }
-      if (cols.length) rows.push(cols.join('\t'));
-    }
-    return rows.join('\n');
+    return { minR, maxR, minC, maxC, allCells };
   }
 
   document.addEventListener('mousedown', e => {
+    // Enter selection mode with Alt+Click or Ctrl+Click
     const td = e.target.closest('#inv-table td');
-    if (!td || td.querySelector('input[type="checkbox"]') || td.querySelector('.btn')) return;
-    const tbody = document.getElementById('inv-tbody');
-    if (!tbody) return;
+    if (!td) return;
+    if (td.querySelector('input[type="checkbox"]') || td.querySelector('.btn')) return;
 
-    // Clear previous selection
-    tbody.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
-    selectedCells.clear();
-
-    isDragging = true;
-    startCell = getCellCoords(td);
-    td.classList.add('cell-selected');
-    selectedCells.add(td);
-    e.preventDefault();
+    if (e.altKey || e.ctrlKey) {
+      // Enter cell selection mode
+      selectionMode = true;
+      isDragging = true;
+      startCell = getCoords(td);
+      document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+      selectedCells.clear();
+      td.classList.add('cell-selected');
+      selectedCells.add(td);
+      document.getElementById('inv-table')?.closest('.table-wrap')?.classList.add('spreadsheet-selecting');
+      e.preventDefault();
+    } else {
+      // Normal click - clear selection, allow text selection
+      if (selectedCells.size > 0) {
+        document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+        selectedCells.clear();
+        selectionMode = false;
+        document.getElementById('inv-table')?.closest('.table-wrap')?.classList.remove('spreadsheet-selecting');
+      }
+    }
   });
 
   document.addEventListener('mousemove', e => {
-    if (!isDragging || !startCell) return;
+    if (!isDragging || !startCell || !selectionMode) return;
     const td = e.target.closest('#inv-table td');
     if (!td) return;
-    const tbody = document.getElementById('inv-tbody');
-    if (!tbody) return;
-    const endCell = getCellCoords(td);
-    selectRange(tbody, startCell, endCell);
+    selectRange(startCell, getCoords(td));
   });
 
-  document.addEventListener('mouseup', e => {
-    isDragging = false;
-  });
+  document.addEventListener('mouseup', () => { isDragging = false; });
 
-  // Ctrl+C to copy selected cells
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedCells.size > 0) {
-      const tbody = document.getElementById('inv-tbody');
-      if (!tbody) return;
-      const allCells = getAllCells(tbody);
-
-      // Find range
-      let minRow=Infinity, maxRow=-Infinity, minCol=Infinity, maxCol=-Infinity;
+    // Ctrl+C copies selected cells
+    if ((e.ctrlKey||e.metaKey) && e.key==='c' && selectedCells.size>0) {
+      const allCells = getAllCells();
+      let minR=Infinity,maxR=-Infinity,minC=Infinity,maxC=-Infinity;
       selectedCells.forEach(cell => {
-        const coords = getCellCoords(cell);
-        minRow = Math.min(minRow, coords.rowIdx);
-        maxRow = Math.max(maxRow, coords.rowIdx);
-        minCol = Math.min(minCol, coords.colIdx);
-        maxCol = Math.max(maxCol, coords.colIdx);
+        for (let r=0;r<allCells.length;r++) for (let c=0;c<allCells[r].length;c++)
+          if (allCells[r][c]===cell) { minR=Math.min(minR,r);maxR=Math.max(maxR,r);minC=Math.min(minC,c);maxC=Math.max(maxC,c); }
       });
-
-      const text = getSelectedText(allCells, minRow, maxRow, minCol, maxCol);
-      navigator.clipboard.writeText(text).then(() => {
-        toast('Copied ' + selectedCells.size + ' cell(s) to clipboard ✓', 'success');
-      }).catch(() => {
-        // Fallback
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta);
-        ta.select(); document.execCommand('copy');
-        document.body.removeChild(ta);
-        toast('Copied to clipboard ✓', 'success');
-      });
+      const lines = [];
+      for (let r=minR;r<=maxR;r++) {
+        const cols = [];
+        for (let col=minC;col<=maxC;col++) if(col>0) cols.push((allCells[r]?.[col]?.innerText||'').trim());
+        lines.push(cols.join('\t'));
+      }
+      navigator.clipboard.writeText(lines.join('\n'))
+        .then(()=>toast('Copied '+selectedCells.size+' cell(s) ✓','success'))
+        .catch(()=>{const ta=document.createElement('textarea');ta.value=lines.join('\n');document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied ✓','success');});
       e.preventDefault();
     }
-    // Escape to clear selection
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
-      selectedCells.clear();
+    if (e.key==='Escape') {
+      document.querySelectorAll('.cell-selected').forEach(c=>c.classList.remove('cell-selected'));
+      selectedCells.clear(); selectionMode=false;
+      document.getElementById('inv-table')?.closest('.table-wrap')?.classList.remove('spreadsheet-selecting');
     }
   });
 })();
