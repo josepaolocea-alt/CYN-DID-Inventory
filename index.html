@@ -435,26 +435,26 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
       <h2>Settings</h2>
       <button class="btn btn-secondary" onclick="downloadSettingsCSV()">⬇️ Download Lists as CSV</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
-      <div class="chart-card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;align-items:start">
+      <div class="chart-card" style="display:flex;flex-direction:column">
         <h3 style="margin-bottom:14px">👥 Clients</h3>
-        <div id="client-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px"></div>
-        <div style="display:flex;gap:8px"><input class="form-control" id="new-client" placeholder="Add client…"><button class="btn btn-primary btn-sm" onclick="addClient()">Add</button></div>
+        <div id="client-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;min-height:120px;max-height:260px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:auto"><input class="form-control" id="new-client" placeholder="Add client…"><button class="btn btn-primary btn-sm" onclick="addClient()">Add</button></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card" style="display:flex;flex-direction:column">
         <h3 style="margin-bottom:14px">📡 Providers</h3>
-        <div id="provider-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px"></div>
-        <div style="display:flex;gap:8px"><input class="form-control" id="new-provider" placeholder="Add provider…"><button class="btn btn-primary btn-sm" onclick="addProvider()">Add</button></div>
+        <div id="provider-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;min-height:120px;max-height:260px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:auto"><input class="form-control" id="new-provider" placeholder="Add provider…"><button class="btn btn-primary btn-sm" onclick="addProvider()">Add</button></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card" style="display:flex;flex-direction:column">
         <h3 style="margin-bottom:14px">📦 Products</h3>
-        <div id="product-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto"></div>
-        <div style="display:flex;gap:8px"><input class="form-control" id="new-product" placeholder="Add product…"><button class="btn btn-primary btn-sm" onclick="addProduct()">Add</button></div>
+        <div id="product-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;min-height:120px;max-height:260px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:auto"><input class="form-control" id="new-product" placeholder="Add product…"><button class="btn btn-primary btn-sm" onclick="addProduct()">Add</button></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card" style="display:flex;flex-direction:column">
         <h3 style="margin-bottom:14px">🧑 Route Requested By</h3>
-        <div id="route-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto"></div>
-        <div style="display:flex;gap:8px"><input class="form-control" id="new-route" placeholder="Add person…"><button class="btn btn-primary btn-sm" onclick="addRoute()">Add</button></div>
+        <div id="route-list" style="margin-bottom:10px;display:flex;flex-direction:column;gap:4px;min-height:120px;max-height:260px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:auto"><input class="form-control" id="new-route" placeholder="Add person…"><button class="btn btn-primary btn-sm" onclick="addRoute()">Add</button></div>
       </div>
     </div>
   </div>
@@ -467,12 +467,16 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add User
       </button>
     </div>
-    <div class="chart-card" style="max-width:700px">
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Users are created here and stored in Firestore. Passwords are managed via Firebase Authentication.</p>
-      <table class="user-table" id="user-table">
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th>Actions</th></tr></thead>
-        <tbody id="user-tbody"></tbody>
-      </table>
+    <div class="table-wrap" style="max-width:900px">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)">
+        Users are stored in Firestore. Passwords are managed via Firebase Authentication.
+      </div>
+      <div class="table-scroll">
+        <table class="user-table" id="user-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th>Actions</th></tr></thead>
+          <tbody id="user-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -1700,12 +1704,14 @@ async function renderUsers() {
     const roleHtml=`<span class="role-badge ${u.role==='admin'?'role-admin':'role-viewer'}">${u.role==='admin'?'Admin':'Viewer'}</span>`;
     const date=u.createdAt?.toDate?u.createdAt.toDate().toLocaleDateString():'—';
     return `<tr>
-      <td>${u.name||'—'}</td><td>${u.email||'—'}</td>
-      <td>${roleHtml}</td><td>${date}</td>
+      <td style="font-weight:500">${u.name||u.email||'—'}${isSelf?' <span style="font-size:10px;color:var(--text3);background:var(--bg4);padding:1px 6px;border-radius:10px;margin-left:6px">You</span>':''}</td>
+      <td style="color:var(--text2)">${u.email||'—'}</td>
+      <td>${roleHtml}</td>
+      <td style="color:var(--text3)">${date}</td>
       <td>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${u.id}')">✏️ Edit</button>
-          ${!isSelf?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.email}')">🗑</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}
+        <div style="display:flex;gap:6px;align-items:center">
+          ${!isSelf?`<button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${u.id}')">✏️ Edit</button>`:''}
+          ${!isSelf?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.email}')">🗑</button>`:''}
         </div>
       </td>
     </tr>`;
@@ -1719,6 +1725,8 @@ function openAddUserModal() {
   document.getElementById('u-email').value='';
   document.getElementById('u-password').value='';
   document.getElementById('u-role').value='viewer';
+  const rg=document.querySelector('#user-modal [id="u-role"]')?.closest('.form-group');
+  if(rg) rg.style.display='';
   document.getElementById('u-password-group').style.display='';
   document.getElementById('btn-save-user').textContent='Add User';
   hideErr('user-err');
@@ -1733,6 +1741,9 @@ function openEditUserModal(id) {
   document.getElementById('u-email').value=u.email||'';
   document.getElementById('u-password').value='';
   document.getElementById('u-role').value=u.role||'viewer';
+  // Hide role selector if target user is admin (prevent accidental demotion of admins)
+  const roleGroup=document.querySelector('#user-modal [id="u-role"]')?.closest('.form-group');
+  if(roleGroup) roleGroup.style.display=u.role==='admin'?'none':'';
   document.getElementById('u-password-group').style.display='none'; // can't change pw from here
   document.getElementById('btn-save-user').textContent='Save Changes';
   hideErr('user-err');
