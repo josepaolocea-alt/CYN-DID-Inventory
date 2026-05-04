@@ -2373,27 +2373,39 @@ function listenLogs(){
 }
 
 function filterLogs(){
-  const action=document.getElementById('log-filter-action')?.value||'';
-  const date=document.getElementById('log-filter-date')?.value||'';
-  const timeFrom=document.getElementById('log-time-from')?.value||'';
-  const timeTo=document.getElementById('log-time-to')?.value||'';
-  const search=(document.getElementById('log-search')?.value||'').toLowerCase();
+  const action=(document.getElementById('log-filter-action')?.value||'').trim();
+  const date=(document.getElementById('log-filter-date')?.value||'').trim();
+  const timeFrom=(document.getElementById('log-time-from')?.value||'').trim();
+  const timeTo=(document.getElementById('log-time-to')?.value||'').trim();
+  const search=(document.getElementById('log-search')?.value||'').toLowerCase().trim();
 
   filteredLogs=ALL_LOGS.filter(l=>{
+    // Action filter
     const matchAction=!action||l.action===action;
+
+    // Search filter
     const matchSearch=!search||
       String(l.number||'').toLowerCase().includes(search)||
       String(l.user||'').toLowerCase().includes(search)||
-      String(l.details||'').toLowerCase().includes(search);
+      String(l.details||'').toLowerCase().includes(search)||
+      String(l.affectedNumbers||'').toLowerCase().includes(search);
 
+    // Date & time filter — each is independent
     let matchDate=true, matchTime=true;
     if(date||timeFrom||timeTo){
       const d=l.timestamp?.toDate?l.timestamp.toDate():new Date(l.timestamp||Date.now());
-      const localDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      const localTime=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-      if(date) matchDate=localDate===date;
-      if(timeFrom) matchTime=matchTime&&localTime>=timeFrom;
-      if(timeTo) matchTime=matchTime&&localTime<=timeTo;
+      if(date){
+        const localDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        matchDate=localDate===date;
+      }
+      if(timeFrom||timeTo){
+        const hh=String(d.getHours()).padStart(2,'0');
+        const mm=String(d.getMinutes()).padStart(2,'0');
+        const localTime=hh+':'+mm;
+        if(timeFrom && !timeTo) matchTime=localTime>=timeFrom;
+        else if(!timeFrom && timeTo) matchTime=localTime<=timeTo;
+        else if(timeFrom && timeTo) matchTime=localTime>=timeFrom&&localTime<=timeTo;
+      }
     }
     return matchAction&&matchSearch&&matchDate&&matchTime;
   });
