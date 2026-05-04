@@ -210,6 +210,44 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
   .actions-menu-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text2);transition:.15s;border:none;background:none;width:100%;text-align:left;font-family:var(--sf);}
   .actions-menu-item:hover{background:var(--bg3);color:var(--text);}
   .actions-menu-divider{border:none;border-top:1px solid var(--border);margin:4px 0;}
+
+  /* ── SIDE PANEL PREVIEW ── */
+  .side-panel {
+    position:fixed; top:0; right:-420px; width:420px; height:100vh;
+    background:var(--bg2); border-left:1px solid var(--border);
+    z-index:200; transition:right .3s cubic-bezier(.4,0,.2,1);
+    display:flex; flex-direction:column;
+    box-shadow:-4px 0 24px rgba(0,0,0,.3);
+  }
+  .side-panel.open { right:0; }
+  .side-panel-header {
+    padding:16px 18px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0;
+  }
+  .side-panel-header h3 { font-size:14px; font-weight:600; }
+  .side-panel-body { padding:16px 18px; overflow-y:auto; flex:1; }
+  .sp-field { margin-bottom:14px; }
+  .sp-label { font-size:10px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .sp-value { font-size:13px; color:var(--text); line-height:1.5; word-break:break-word; white-space:normal; }
+  .sp-value.empty { color:var(--text3); font-style:italic; }
+  .sp-section { font-size:11px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.6px; padding:8px 0 6px; border-bottom:1px solid var(--border); margin-bottom:10px; margin-top:6px; }
+  .sp-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .side-panel-footer { padding:14px 18px; border-top:1px solid var(--border); display:flex; gap:8px; flex-shrink:0; }
+  .main-shifted { margin-right:420px; transition:margin-right .3s cubic-bezier(.4,0,.2,1); }
+
+  /* ── MOBILE SIDEBAR ── */
+  .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99; }
+  .hamburger { display:none; background:none; border:none; color:var(--text); font-size:20px; cursor:pointer; padding:4px; }
+  @media(max-width:700px){
+    #sidebar{transform:translateX(-220px);transition:transform .25s;display:flex!important;}
+    #sidebar.mobile-open{transform:translateX(0);}
+    .sidebar-overlay.active{display:block;}
+    #main{margin-left:0!important;}
+    .hamburger{display:flex;align-items:center;}
+    .side-panel{width:100%;right:-100%;border-left:none;border-top:1px solid var(--border);}
+    .side-panel.open{right:0;}
+  }
 </style>
 </head>
 <body>
@@ -310,6 +348,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
 
 <!-- ══ MAIN ══ -->
 <main id="main" style="display:none">
+<button class="hamburger" id="hamburger-btn" onclick="toggleMobileSidebar()" style="position:fixed;top:14px;left:14px;z-index:101">☰</button>
 
   <!-- DASHBOARD -->
   <div id="page-dashboard" class="page active">
@@ -322,9 +361,15 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
       <h3>📊 Activated vs Deactivated per Day (Last 14 Days)</h3>
       <div class="chart-wrap"><canvas id="actChart"></canvas></div>
     </div>
-    <div class="chart-card">
-      <h3>📦 Numbers by Status</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px">
+      <div class="chart-card">
+        <h3 style="margin-bottom:12px">🕐 Recently Viewed</h3>
+        <div id="recent-widget"><p style="color:var(--text3);font-size:12px">No recent records</p></div>
+      </div>
+      <div class="chart-card">
+        <h3>📦 Numbers by Status</h3>
       <div class="chart-wrap" style="height:200px"><canvas id="statusChart"></canvas></div>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="chart-card">
@@ -523,6 +568,21 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
     </div>
   </div>
 
+
+<!-- SIDE PANEL PREVIEW -->
+<div class="side-panel" id="side-panel">
+  <div class="side-panel-header">
+    <h3 id="sp-title">Record Details</h3>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-primary btn-sm admin-only" id="sp-edit-btn" onclick="openEditFromPanel()">✏️ Edit</button>
+      <button class="btn-icon" onclick="closeSidePanel()">✕</button>
+    </div>
+  </div>
+  <div class="side-panel-body" id="sp-body"></div>
+</div>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
 </main>
 
 <!-- RECORD MODAL -->
@@ -959,22 +1019,65 @@ function applyRoleUI() {
 // ══════════════════════════════════════════
 //  FIRESTORE LISTENERS
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// SERVER-SIDE PAGINATION STATE
+// ══════════════════════════════════════════
+let TOTAL_RECORDS = 0;
+let RECENT_IDS = JSON.parse(localStorage.getItem('cyn_recent')||'[]'); // last 5 record ids
+
+function trackRecent(id) {
+  RECENT_IDS = [id, ...RECENT_IDS.filter(i=>i!==id)].slice(0,5);
+  localStorage.setItem('cyn_recent', JSON.stringify(RECENT_IDS));
+  renderRecentWidget();
+}
+
+function renderRecentWidget() {
+  const el = document.getElementById('recent-widget');
+  if (!el) return;
+  const recs = RECENT_IDS.map(id=>DATA.find(r=>r.id===id)).filter(Boolean);
+  if (!recs.length) { el.innerHTML='<p style="color:var(--text3);font-size:12px">No recent records</p>'; return; }
+  el.innerHTML = recs.map(r=>`
+    <div onclick="openSidePanel('${r.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:.15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div style="width:8px;height:8px;border-radius:50%;background:${{Active:'var(--green)',Available:'var(--accent)',Reserved:'var(--yellow)'}[r.status]||'var(--text3)'};flex-shrink:0"></div>
+      <div style="min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.number||'—'}</div>
+        <div style="font-size:11px;color:var(--text3)">${r.client||'—'} · ${r.status||'—'}</div>
+      </div>
+    </div>`).join('');
+}
+let lastDoc = null;
+let firstDoc = null;
+let serverPage = 1;
+const SERVER_PAGE_SIZE = 200; // fetch 200 from server at a time
+
+function processRecordDocs(docs) {
+  const DATE_FIELDS=['effectiveDate','activated','arrivalDate','activationDate','postedDate','deacDate'];
+  return docs.map(d=>{
+    const rec={id:d.id,_sel:false,...d.data()};
+    DATE_FIELDS.forEach(f=>{ if(rec[f]==='__BLANK__') rec[f]=''; else if(rec[f]) rec[f]=normalizeDate(String(rec[f])); });
+    return rec;
+  });
+}
+
 function listenRecords() {
   if (unsubRecords) unsubRecords();
-  // Show loading on first load
   const loadingEl=document.getElementById('inv-loading');
   const tableEl=document.querySelector('.table-scroll');
   if(DATA.length===0){ if(loadingEl)loadingEl.classList.remove('hidden'); if(tableEl)tableEl.style.display='none'; }
+
+  // Get total count first
+  db.collection('records').get().then(snap => { TOTAL_RECORDS = snap.size; updateTotalCount(); });
+
+  // Listen to current page
   unsubRecords = db.collection('records').orderBy('createdAt','asc')
+    .limit(SERVER_PAGE_SIZE)
     .onSnapshot(snap => {
+      if(snap.docs.length > 0){
+        firstDoc = snap.docs[0];
+        lastDoc = snap.docs[snap.docs.length-1];
+      }
       const prevIds = new Set(DATA.map(r=>r.id));
-      const DATE_FIELDS=['effectiveDate','activated','arrivalDate','activationDate','postedDate','deacDate'];
-      DATA = snap.docs.map(d=>{
-        const rec={id:d.id,_sel:false,...d.data()};
-        DATE_FIELDS.forEach(f=>{ if(rec[f]==='__BLANK__') rec[f]=''; else if(rec[f]) rec[f]=normalizeDate(String(rec[f])); });
-        // activationDate (Prov Act Date) and activated (Client Activated) are separate fields
-        return rec;
-      });
+      DATA = processRecordDocs(snap.docs);
       snap.docChanges().forEach(change => {
         if ((change.type==='modified'||change.type==='added') && prevIds.has(change.doc.id)) {
           setTimeout(()=>{
@@ -983,13 +1086,30 @@ function listenRecords() {
           },100);
         }
       });
-      // Hide loading spinner
       const le=document.getElementById('inv-loading'); if(le)le.classList.add('hidden');
       const te=document.querySelector('.table-scroll'); if(te)te.style.display='';
       setSyncStatus(true);
       applyFilters_internal();
-      if (document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+      if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
     }, ()=>setSyncStatus(false));
+}
+
+function updateTotalCount(){
+  const lbl=document.getElementById('total-records-lbl');
+  if(lbl) lbl.textContent=`${TOTAL_RECORDS.toLocaleString()} total records`;
+}
+
+async function loadNextServerPage(){
+  if(!lastDoc) return;
+  const snap = await db.collection('records').orderBy('createdAt','asc').startAfter(lastDoc).limit(SERVER_PAGE_SIZE).get();
+  if(snap.empty){ toast('No more records to load','info'); return; }
+  lastDoc = snap.docs[snap.docs.length-1];
+  const newRecs = processRecordDocs(snap.docs);
+  // Merge avoiding duplicates
+  const existingIds = new Set(DATA.map(r=>r.id));
+  newRecs.forEach(r=>{ if(!existingIds.has(r.id)) DATA.push(r); });
+  toast(`Loaded ${newRecs.length} more records (${DATA.length} total in view)`,'info');
+  applyFilters_internal();
 }
 
 function listenConfig() {
@@ -1245,7 +1365,7 @@ function renderRows() {
       ?`<button class="btn btn-secondary btn-sm" onclick="openEditModal('${r.id}')">✏️</button>
          <button class="btn btn-danger btn-sm" onclick="deleteOne('${r.id}')">🗑</button>`
       :`<span style="font-size:11px;color:var(--text3)">View only</span>`;
-    return `<tr id="row-${r.id}" class="${r._sel?'selected':''}">
+    return `<tr id="row-${r.id}" class="${r._sel?'selected':''}" onclick="handleRowClick(event,'${r.id}')" style="cursor:pointer">
       <td><input type="checkbox" ${r._sel?'checked':''} onchange="toggleRow('${r.id}',this)"></td>
       <td style="color:var(--text3)">${start+idx+1}</td>
       <td>${r.client||''}</td><td title="${r.product||''}">${r.product||''}</td>
@@ -1397,6 +1517,12 @@ async function saveRecord() {
   if(!guardAdmin()) return;
   const num=document.getElementById('f-number').value.trim();
   if(!num){toast('Number is required','error');return;}
+  // Check for duplicate number (skip if editing same record)
+  const dupCheck = DATA.find(r=>String(r.number||'').toLowerCase().trim()===num.toLowerCase().trim() && String(r.id)!==String(editingId));
+  if(dupCheck){
+    const ok = await appConfirm(`⚠️ Number "${num}" already exists (Client: ${dupCheck.client||'—'}, Status: ${dupCheck.status||'—'}). Save anyway?`,'Save Anyway');
+    if(!ok) return;
+  }
   const get=id=>document.getElementById(id)?.value||'';
   const rec={
     client:get('f-client'),product:get('f-product'),number:num,
@@ -1439,6 +1565,7 @@ async function saveRecord() {
       });
       const diffText=changes.length>0?changes.join(' | '):'No changes detected';
       await db.collection('records').doc(editingId).update(rec);
+      trackRecent(editingId);
       writeLog('updated', rec.number, diffText);
       toast('Record updated ✓','success');
     } else {
@@ -2072,6 +2199,98 @@ function downloadText(text,filename,type){const a=document.createElement('a');a.
 function datestamp(){return new Date().toISOString().split('T')[0];}
 
 
+
+// ══════════════════════════════════════════
+//  SIDE PANEL PREVIEW
+// ══════════════════════════════════════════
+let sidePanelId = null;
+
+function openSidePanel(id) {
+  const r = DATA.find(d=>d.id===id);
+  if (!r) return;
+  sidePanelId = id;
+  trackRecent(id);
+  document.getElementById('sp-title').textContent = r.number || 'Record Details';
+  const fmt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+  const val = (v) => v ? `<span class="sp-value">${v}</span>` : `<span class="sp-value empty">—</span>`;
+
+  document.getElementById('sp-body').innerHTML = `
+    <div class="sp-section">Client Information</div>
+    <div class="sp-grid">
+      <div class="sp-field"><div class="sp-label">Client</div>${val(r.client)}</div>
+      <div class="sp-field"><div class="sp-label">Product</div>${val(r.product)}</div>
+      <div class="sp-field"><div class="sp-label">Number</div>${val(r.number)}</div>
+      <div class="sp-field"><div class="sp-label">Status</div>${val(r.status)}</div>
+    </div>
+    <div class="sp-field"><div class="sp-label">Remarks</div>${val(r.remarks)}</div>
+    <div class="sp-grid">
+      <div class="sp-field"><div class="sp-label">OSF</div>${val(r.osf)}</div>
+      <div class="sp-field"><div class="sp-label">MRC</div>${val(r.mrc)}</div>
+      <div class="sp-field"><div class="sp-label">OTRF</div>${val(r.otrf)}</div>
+      <div class="sp-field"><div class="sp-label">Posted</div>${val(r.posted)}</div>
+      <div class="sp-field"><div class="sp-label">Channel Fee</div>${val(r.channelfee)}</div>
+      <div class="sp-field"><div class="sp-label">CPM</div>${val(r.cpm)}</div>
+      <div class="sp-field"><div class="sp-label">Effective Date</div>${val(fmt(r.effectiveDate))}</div>
+      <div class="sp-field"><div class="sp-label">Activated</div>${val(fmt(r.activated))}</div>
+    </div>
+    <div class="sp-section">Provider Information</div>
+    <div class="sp-grid">
+      <div class="sp-field"><div class="sp-label">Provider</div>${val(r.provider)}</div>
+      <div class="sp-field"><div class="sp-label">Arrival Date</div>${val(fmt(r.arrivalDate))}</div>
+      <div class="sp-field"><div class="sp-label">Prov Act Date</div>${val(fmt(r.activationDate))}</div>
+      <div class="sp-field"><div class="sp-label">Prov OSF</div>${val(r.provosf)}</div>
+      <div class="sp-field"><div class="sp-label">Prov MRC</div>${val(r.provmrc)}</div>
+      <div class="sp-field"><div class="sp-label">Prov CPM</div>${val(r.provcpm)}</div>
+      <div class="sp-field"><div class="sp-label">Posted Date</div>${val(fmt(r.postedDate))}</div>
+    </div>
+    <div class="sp-field"><div class="sp-label">Type / Sessions</div>${val(r.sessions||r.type)}</div>
+    <div class="sp-section">Routing & History</div>
+    <div class="sp-grid">
+      <div class="sp-field"><div class="sp-label">Route Req By</div>${val(r.routeBy)}</div>
+      <div class="sp-field"><div class="sp-label">Deac Date</div>${val(fmt(r.deacDate))}</div>
+    </div>
+    <div class="sp-field"><div class="sp-label">Prev Clients</div>${val(Array.isArray(r.prevClients)?r.prevClients.join(' → '):(r.prevClient||''))}</div>
+    <div class="sp-section">Meta</div>
+    <div class="sp-grid">
+      <div class="sp-field"><div class="sp-label">Created By</div>${val(r.createdBy)}</div>
+      <div class="sp-field"><div class="sp-label">Updated By</div>${val(r.updatedBy)}</div>
+    </div>
+  `;
+
+  document.getElementById('side-panel').classList.add('open');
+  document.getElementById('main').classList.add('main-shifted');
+}
+
+function closeSidePanel() {
+  document.getElementById('side-panel').classList.remove('open');
+  document.getElementById('main').classList.remove('main-shifted');
+  sidePanelId = null;
+}
+
+function handleRowClick(e, id) {
+  // Don't open panel if clicking checkbox, button, or resizer
+  if(e.target.closest('input,button,.col-resizer,.row-actions')) return;
+  // Don't open if alt/ctrl click (cell selection mode)
+  if(e.altKey || e.ctrlKey) return;
+  openSidePanel(id);
+}
+
+function openEditFromPanel() {
+  if (sidePanelId) { closeSidePanel(); openEditModal(sidePanelId); }
+}
+
+// ══════════════════════════════════════════
+//  MOBILE SIDEBAR
+// ══════════════════════════════════════════
+function toggleMobileSidebar() {
+  document.getElementById('sidebar').classList.toggle('mobile-open');
+  document.getElementById('sidebar-overlay').classList.toggle('active');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay').classList.remove('active');
+}
+
 // ══════════════════════════════════════════
 //  LOGS
 // ══════════════════════════════════════════
@@ -2282,23 +2501,32 @@ function sortFilteredData() {
   const dateFields = ['effectiveDate','activated','arrivalDate','activationDate','postedDate','deacDate'];
   const numFields = ['osf','mrc','otrf','cpm','channelfee','provosf','provmrc','provcpm'];
   filteredData.sort((a, b) => {
-    let va = String(a[sortCol] || '').toLowerCase();
-    let vb = String(b[sortCol] || '').toLowerCase();
-    // Numeric sort
+    let va = String(a[sortCol] || '').toLowerCase().trim();
+    let vb = String(b[sortCol] || '').toLowerCase().trim();
     if (numFields.includes(sortCol)) {
-      const na = parseFloat(va) || 0;
-      const nb = parseFloat(vb) || 0;
+      const na = parseFloat(va) || 0, nb = parseFloat(vb) || 0;
       return (na - nb) * sortDir;
     }
-    // Date sort
     if (dateFields.includes(sortCol)) {
-      const da = va ? new Date(va).getTime() : 0;
-      const db = vb ? new Date(vb).getTime() : 0;
-      return (da - db) * sortDir;
+      const da = va ? new Date(va).getTime() : 0, db2 = vb ? new Date(vb).getTime() : 0;
+      return (da - db2) * sortDir;
     }
-    // String sort
-    return va.localeCompare(vb) * sortDir;
+    // Empty values always go last
+    if (!va && vb) return 1;
+    if (va && !vb) return -1;
+    return va.localeCompare(vb, undefined, {numeric:true, sensitivity:'base'}) * sortDir;
   });
+}
+
+function sortBy(field) {
+  if (sortCol === field) { sortDir *= -1; } else { sortCol = field; sortDir = 1; }
+  document.querySelectorAll('th[id^="th-"]').forEach(t=>t.classList.remove('sort-asc','sort-desc'));
+  const th = document.getElementById('th-'+field);
+  if(th) th.classList.add(sortDir===1?'sort-asc':'sort-desc');
+  currentPage = 1;
+  sortFilteredData();
+  renderRows();
+  renderPagination();
 }
 
 // ══════════════════════════════════════════
