@@ -487,8 +487,9 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
     <div id="viewer-banner" class="readonly-banner hidden">
       👁️ You are in <strong>Viewer</strong> mode — read-only access. Contact an Admin to make changes.
     </div>
-    <div class="search-bar">
-      <div style="display:flex;gap:0;flex:1;min-width:200px">
+    <!-- FILTER BAR: single row + collapsible more -->
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 20px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <div style="display:flex;gap:0;flex:1;min-width:200px;max-width:320px">
         <select class="search-select" id="search-field" onchange="applyFilters()" style="border-radius:8px 0 0 8px;border-right:none;flex-shrink:0;font-size:12px">
           <option value="all">All Fields</option>
           <option value="number">Number</option>
@@ -499,24 +500,27 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
           <option value="provider">Provider</option>
           <option value="routeBy">Route By</option>
         </select>
-        <input class="search-input" id="search-input" placeholder="🔍  Search… (use * as wildcard)" oninput="applyFilters()" style="border-radius:0 8px 8px 0;flex:1">
+        <input class="search-input" id="search-input" placeholder="Search… (* wildcard)" oninput="applyFilters()" style="border-radius:0 8px 8px 0;flex:1">
       </div>
-      <select class="search-select" id="filter-client" onchange="applyFilters()"><option value="">All Clients</option></select>
-      <select class="search-select" id="filter-status" onchange="applyFilters()">
+      <select class="search-select" id="filter-client" onchange="applyFilters()" style="flex:1;min-width:120px;max-width:200px"><option value="">All Clients</option></select>
+      <select class="search-select" id="filter-status" onchange="applyFilters()" style="min-width:130px">
         <option value="">All Statuses</option>
         <option>Available</option><option>Reserved</option><option>Active</option><option>Used as Random ANI</option>
       </select>
-      <select class="search-select" id="filter-product" onchange="applyFilters()"><option value="">All Products</option></select>
-      <select class="search-select" id="filter-provider" onchange="applyFilters()"><option value="">All Providers</option></select>
-      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-        <span style="font-size:11px;color:var(--text3);white-space:nowrap">Act. Date</span>
-        <input class="search-input" id="filter-date-start" type="date" title="Activation Date Start" style="width:145px;flex:none" onchange="applyFilters()">
-        <span style="font-size:11px;color:var(--text3)">–</span>
-        <input class="search-input" id="filter-date-end" type="date" title="Activation Date End" style="width:145px;flex:none" onchange="applyFilters()">
-      </div>
-      <button class="btn btn-secondary btn-sm" id="btn-clear-filters" onclick="clearFilters()" title="Clear all filters &amp; selections" style="white-space:nowrap;flex-shrink:0">
-        ✕ Clear
+      <select class="search-select" id="filter-product" onchange="applyFilters()" style="flex:1;min-width:120px;max-width:220px"><option value="">All Products</option></select>
+      <select class="search-select" id="filter-provider" onchange="applyFilters()" style="min-width:120px"><option value="">All Providers</option></select>
+      <button class="btn btn-secondary btn-sm" id="more-filters-btn" onclick="toggleMoreFilters()" style="white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:5px">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        More
       </button>
+      <button class="btn btn-secondary btn-sm" id="btn-clear-filters" onclick="clearFilters()" style="flex-shrink:0">✕ Clear</button>
+    </div>
+    <!-- MORE FILTERS: collapsible -->
+    <div id="more-filters-panel" style="display:none;align-items:center;gap:8px;padding:8px 20px;background:var(--bg3);border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap">Act. Date</span>
+      <input class="search-input" id="filter-date-start" type="date" onchange="applyFilters()" style="width:145px">
+      <span style="color:var(--text3)">–</span>
+      <input class="search-input" id="filter-date-end" type="date" onchange="applyFilters()" style="width:145px">
     </div>
     <div class="table-wrap">
       <div class="table-toolbar">
