@@ -88,7 +88,7 @@ body{font-family:var(--sf);background:var(--bg);color:var(--text);min-height:100
 .role-viewer{background:rgba(59,130,246,.15);color:var(--accent);}
 
 /* ── SIDEBAR ── */
-#sidebar{position:fixed;top:0;left:0;width:220px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:background .3s;}
+#sidebar{position:fixed;top:0;left:0;width:220px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:background .3s, transform .3s;}
 .sidebar-logo{padding:18px 18px 12px;border-bottom:1px solid var(--border);}
 .sidebar-logo h1{font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--accent);line-height:1.2;}
 .sidebar-logo p{font-size:11px;color:var(--text3);margin-top:2px;}
@@ -248,6 +248,24 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
     .side-panel{width:100%;right:-100%;border-left:none;border-top:1px solid var(--border);}
     .side-panel.open{right:0;}
   }
+
+  /* ── SIDEBAR TOGGLE ── */
+  .sidebar-toggle {
+    position:fixed; top:50%; left:220px;
+    transform:translateY(-50%);
+    width:20px; height:48px;
+    background:var(--bg2); border:1px solid var(--border);
+    border-left:none; border-radius:0 8px 8px 0;
+    cursor:pointer; z-index:101;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text3); font-size:11px;
+    transition:left .3s, color .15s, background .15s;
+  }
+  .sidebar-toggle:hover { background:var(--bg3); color:var(--text); }
+  .sidebar-toggle.collapsed { left:0; }
+  #sidebar.collapsed { transform:translateX(-220px); }
+  #main.sidebar-collapsed { margin-left:0; }
+  @media(max-width:700px){ .sidebar-toggle{display:none;} }
 </style>
 </head>
 <body>
@@ -345,6 +363,11 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
     <button class="btn btn-secondary btn-sm" onclick="signOutUser()" style="justify-content:center">🚪 Sign Out</button>
   </div>
 </nav>
+
+<!-- SIDEBAR TOGGLE BUTTON -->
+<button class="sidebar-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+  <svg id="toggle-icon" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
 
 <!-- ══ MAIN ══ -->
 <main id="main" style="display:none">
@@ -982,6 +1005,7 @@ function startApp() {
   const lb=document.getElementById('btn-login'); if(lb){lb.disabled=false;lb.textContent='Sign In';}
   document.getElementById('l-email').value=''; document.getElementById('l-password').value='';
   applyRoleUI();
+  applySidebarState();
   listenRecords();
   listenConfig();
   listenLogs();
@@ -1045,11 +1069,6 @@ function renderRecentWidget() {
       </div>
     </div>`).join('');
 }
-let lastDoc = null;
-let firstDoc = null;
-let serverPage = 1;
-const SERVER_PAGE_SIZE = 200; // fetch 200 from server at a time
-
 function processRecordDocs(docs) {
   const DATE_FIELDS=['effectiveDate','activated','arrivalDate','activationDate','postedDate','deacDate'];
   return docs.map(d=>{
@@ -1059,23 +1078,21 @@ function processRecordDocs(docs) {
   });
 }
 
+function updateTotalCount(){
+  TOTAL_RECORDS = DATA.length;
+  const lbl=document.getElementById('total-records-lbl');
+  if(lbl) lbl.textContent=`${TOTAL_RECORDS.toLocaleString()} records`;
+}
+
 function listenRecords() {
   if (unsubRecords) unsubRecords();
   const loadingEl=document.getElementById('inv-loading');
   const tableEl=document.querySelector('.table-scroll');
   if(DATA.length===0){ if(loadingEl)loadingEl.classList.remove('hidden'); if(tableEl)tableEl.style.display='none'; }
 
-  // Get total count first
-  db.collection('records').get().then(snap => { TOTAL_RECORDS = snap.size; updateTotalCount(); });
-
-  // Listen to current page
+  // Load ALL records
   unsubRecords = db.collection('records').orderBy('createdAt','asc')
-    .limit(SERVER_PAGE_SIZE)
     .onSnapshot(snap => {
-      if(snap.docs.length > 0){
-        firstDoc = snap.docs[0];
-        lastDoc = snap.docs[snap.docs.length-1];
-      }
       const prevIds = new Set(DATA.map(r=>r.id));
       DATA = processRecordDocs(snap.docs);
       snap.docChanges().forEach(change => {
@@ -1089,27 +1106,10 @@ function listenRecords() {
       const le=document.getElementById('inv-loading'); if(le)le.classList.add('hidden');
       const te=document.querySelector('.table-scroll'); if(te)te.style.display='';
       setSyncStatus(true);
+      updateTotalCount();
       applyFilters_internal();
       if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
     }, ()=>setSyncStatus(false));
-}
-
-function updateTotalCount(){
-  const lbl=document.getElementById('total-records-lbl');
-  if(lbl) lbl.textContent=`${TOTAL_RECORDS.toLocaleString()} total records`;
-}
-
-async function loadNextServerPage(){
-  if(!lastDoc) return;
-  const snap = await db.collection('records').orderBy('createdAt','asc').startAfter(lastDoc).limit(SERVER_PAGE_SIZE).get();
-  if(snap.empty){ toast('No more records to load','info'); return; }
-  lastDoc = snap.docs[snap.docs.length-1];
-  const newRecs = processRecordDocs(snap.docs);
-  // Merge avoiding duplicates
-  const existingIds = new Set(DATA.map(r=>r.id));
-  newRecs.forEach(r=>{ if(!existingIds.has(r.id)) DATA.push(r); });
-  toast(`Loaded ${newRecs.length} more records (${DATA.length} total in view)`,'info');
-  applyFilters_internal();
 }
 
 function listenConfig() {
@@ -2199,6 +2199,36 @@ function downloadText(text,filename,type){const a=document.createElement('a');a.
 function datestamp(){return new Date().toISOString().split('T')[0];}
 
 
+
+
+// ══════════════════════════════════════════
+//  SIDEBAR TOGGLE
+// ══════════════════════════════════════════
+let sidebarCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  applySidebarState();
+  localStorage.setItem('sidebar_collapsed', sidebarCollapsed);
+}
+
+function applySidebarState() {
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  const btn = document.getElementById('sidebar-toggle-btn');
+  const icon = document.getElementById('toggle-icon');
+  if (sidebarCollapsed) {
+    sidebar.classList.add('collapsed');
+    main.classList.add('sidebar-collapsed');
+    btn.classList.add('collapsed');
+    icon.setAttribute('points', '9 18 15 12 9 6'); // right arrow
+  } else {
+    sidebar.classList.remove('collapsed');
+    main.classList.remove('sidebar-collapsed');
+    btn.classList.remove('collapsed');
+    icon.setAttribute('points', '15 18 9 12 15 6'); // left arrow
+  }
+}
 
 // ══════════════════════════════════════════
 //  SIDE PANEL PREVIEW
