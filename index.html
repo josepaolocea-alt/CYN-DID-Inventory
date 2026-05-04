@@ -553,6 +553,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
     <div class="topbar">
       <h2>Logs</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="search-input" id="log-search" placeholder="🔍 Search number or user..." oninput="filterLogs()" style="min-width:200px">
         <select class="search-select" id="log-filter-action" onchange="filterLogs()">
           <option value="">All Actions</option>
           <option value="added">Added</option>
@@ -561,7 +562,13 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
           <option value="csv">CSV Import</option>
           <option value="login">Login</option>
         </select>
-        <input class="search-input" id="log-filter-date" type="date" onchange="filterLogs()" style="width:160px" title="Filter by date">
+        <input class="search-input" id="log-filter-date" type="date" onchange="filterLogs()" style="width:145px" title="Filter by date">
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          <span style="font-size:11px;color:var(--text3);white-space:nowrap">Time</span>
+          <input class="search-input" id="log-time-from" type="time" onchange="filterLogs()" style="width:110px" title="From time">
+          <span style="font-size:11px;color:var(--text3)">–</span>
+          <input class="search-input" id="log-time-to" type="time" onchange="filterLogs()" style="width:110px" title="To time">
+        </div>
         <button class="btn btn-secondary btn-sm" onclick="clearLogFilters()">✕ Clear</button>
         <button class="btn btn-secondary btn-sm admin-only" onclick="exportLogsCSV()">⬇️ Export Logs</button>
         <button class="btn btn-danger btn-sm admin-only" onclick="clearAllLogs()">🗑 Clear All Logs</button>
@@ -2368,22 +2375,36 @@ function listenLogs(){
 function filterLogs(){
   const action=document.getElementById('log-filter-action')?.value||'';
   const date=document.getElementById('log-filter-date')?.value||'';
+  const timeFrom=document.getElementById('log-time-from')?.value||'';
+  const timeTo=document.getElementById('log-time-to')?.value||'';
+  const search=(document.getElementById('log-search')?.value||'').toLowerCase();
+
   filteredLogs=ALL_LOGS.filter(l=>{
     const matchAction=!action||l.action===action;
-    const matchDate=!date||(l.timestamp&&(()=>{
-      const d=l.timestamp.toDate?l.timestamp.toDate():new Date(l.timestamp);
+    const matchSearch=!search||
+      String(l.number||'').toLowerCase().includes(search)||
+      String(l.user||'').toLowerCase().includes(search)||
+      String(l.details||'').toLowerCase().includes(search);
+
+    let matchDate=true, matchTime=true;
+    if(date||timeFrom||timeTo){
+      const d=l.timestamp?.toDate?l.timestamp.toDate():new Date(l.timestamp||Date.now());
       const localDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      return localDate===date;
-    })());
-    return matchAction&&matchDate;
+      const localTime=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+      if(date) matchDate=localDate===date;
+      if(timeFrom) matchTime=matchTime&&localTime>=timeFrom;
+      if(timeTo) matchTime=matchTime&&localTime<=timeTo;
+    }
+    return matchAction&&matchSearch&&matchDate&&matchTime;
   });
   logPage=1;
   renderLogs();
 }
 
 function clearLogFilters(){
-  const la=document.getElementById('log-filter-action'); if(la) la.value='';
-  const ld=document.getElementById('log-filter-date'); if(ld) ld.value='';
+  ['log-filter-action','log-filter-date','log-time-from','log-time-to','log-search'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
   filterLogs();
 }
 
