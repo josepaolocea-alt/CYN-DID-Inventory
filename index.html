@@ -2421,11 +2421,15 @@ function renderLogs(){
         : `<span style="font-weight:600;color:var(--text)">${l.number||'—'}</span>`;
 
       // Bulk action with stored numbers — show expand button
+      const isBulkAction = l.number && String(l.number).includes('records');
       const hasBulkNums = l.affectedNumbers && l.affectedNumbers.length > 0;
+      const isOldBulk = isBulkAction && !hasBulkNums; // old log without stored numbers
       const logRowId = 'logrow-' + (start+idx);
       const expandBtn = hasBulkNums
         ? `<button class="btn btn-secondary btn-sm" onclick="toggleLogExpand('${logRowId}')" style="margin-left:6px;padding:2px 7px;font-size:11px">▶ Show</button>`
-        : '';
+        : isOldBulk
+          ? `<span style="font-size:11px;color:var(--text3);margin-left:6px">(numbers not recorded)</span>`
+          : '';
 
       // Build expanded numbers list
       let expandedRow = '';
