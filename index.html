@@ -2407,12 +2407,22 @@ function renderLogs(){
       const timeStr=ts.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
       const badge=actionColors[l.action]||'badge-available';
       const icon=actionIcons[l.action]||'•';
-      return `<tr>
+      // Find matching record in DATA for clickable number
+      const matchRec = l.number ? DATA.find(r=>String(r.number||'').toLowerCase()===String(l.number||'').toLowerCase()) : null;
+      const numCell = matchRec
+        ? `<span style="font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="openSidePanel('${matchRec.id}');showPage('inventory',document.getElementById('nav-inventory'))" title="Click to view record">${l.number}</span>`
+        : `<span style="font-weight:600;color:var(--text)">${l.number||'—'}</span>`;
+
+      // For bulk/csv actions that have multiple numbers, parse them
+      const isBulk = l.action==='updated' && l.number && l.number.includes('records');
+      const isDeleted = l.action==='deleted';
+
+      return `<tr style="cursor:default">
         <td style="color:var(--text3)">${start+idx+1}</td>
         <td style="white-space:nowrap"><div style="font-size:12px">${dateStr}</div><div style="font-size:11px;color:var(--text3)">${timeStr}</div></td>
         <td style="font-weight:500">${l.user||'—'}</td>
         <td><span class="badge ${badge}">${icon} ${l.action||'—'}</span></td>
-        <td style="font-weight:600">${l.number||'—'}</td>
+        <td>${numCell}</td>
         <td style="color:var(--text2);max-width:260px;overflow:hidden;text-overflow:ellipsis" title="${l.details||''}">${l.details||'—'}</td>
       </tr>`;
     }).join('');
