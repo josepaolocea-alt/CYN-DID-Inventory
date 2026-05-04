@@ -112,7 +112,8 @@ body{font-family:var(--sf);background:var(--bg);color:var(--text);min-height:100
 
 /* ── MAIN ── */
 #main{margin-left:220px;padding:0;min-height:100vh;position:relative;margin-top:0;display:block;}
-.page{display:none;}.page.active{display:block;}
+.page{display:none;padding:20px;}.page.active{display:block;}
+  #page-inventory.page,#page-inventory.page.active{padding:0;}
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:50;}
 .topbar h2{font-size:22px;font-weight:700;letter-spacing:-.4px;}
 .topbar-actions{display:flex;gap:8px;flex-wrap:wrap;}
@@ -564,7 +565,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
   </div>
 
   <!-- SETTINGS (admin only) -->
-  <div id="page-settings" class="page" style="padding:20px">
+  <div id="page-settings" class="page">
     <div class="topbar">
       <h2>Settings</h2>
       <button class="btn btn-secondary" onclick="downloadSettingsCSV()">⬇️ Download Lists as CSV</button>
@@ -594,7 +595,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
   </div>
 
   <!-- USERS (admin only) -->
-  <div id="page-users" class="page" style="padding:20px">
+  <div id="page-users" class="page">
     <div class="topbar">
       <h2>User Management</h2>
       <button class="btn btn-green" onclick="openAddUserModal()">
@@ -615,7 +616,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
   </div>
 
   <!-- LOGS PAGE -->
-  <div id="page-logs" class="page" style="padding:20px">
+  <div id="page-logs" class="page">
     <div class="topbar">
       <h2>Logs</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
