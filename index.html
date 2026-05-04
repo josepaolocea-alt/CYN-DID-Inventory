@@ -251,7 +251,9 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
 
   /* ── SIDEBAR TOGGLE ── */
   .sidebar-toggle {
-    position:fixed; top:50%; left:220px;
+    position:fixed;
+    top:50vh;
+    left:220px;
     transform:translateY(-50%);
     width:20px; height:48px;
     background:var(--bg2); border:1px solid var(--border);
@@ -1427,7 +1429,7 @@ function renderRows() {
       <td><span class="badge ${sc}">${r.status||''}</span></td>
       <td title="${r.remarks||''}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${r.remarks||''}</td>
       <td class='td-osf'>${r.osf||''}</td><td class='td-mrc'>${r.mrc||''}</td><td class='td-otrf'>${r.otrf||''}</td>
-      <td><span class="badge ${pc}">${r.posted||'No'}</span></td>
+      <td class='td-posted'><span class="badge ${pc}">${r.posted||'No'}</span></td>
       <td class='td-channelfee'>${r.channelfee||''}</td><td class='td-cpm'>${r.cpm||''}</td>
       <td class='td-effectiveDate'>${fmt(r.effectiveDate)}</td><td class='td-activated'>${fmt(r.activated)}</td>
       <td class='td-provider'>${r.provider||''}</td><td class='td-arrivalDate'>${fmt(r.arrivalDate)}</td><td class='td-activationDate'>${fmt(r.activationDate)}</td>
