@@ -213,7 +213,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
 
   /* ── SIDE PANEL PREVIEW ── */
   .side-panel {
-    position:fixed; top:0; right:-420px; width:420px; height:100vh;
+    position:fixed; top:0; right:-35vw; width:clamp(320px, 30vw, 520px); height:100vh;
     background:var(--bg2); border-left:1px solid var(--border);
     z-index:200; transition:right .3s cubic-bezier(.4,0,.2,1);
     display:flex; flex-direction:column;
@@ -234,7 +234,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
   .sp-section { font-size:11px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.6px; padding:8px 0 6px; border-bottom:1px solid var(--border); margin-bottom:10px; margin-top:6px; }
   .sp-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .side-panel-footer { padding:14px 18px; border-top:1px solid var(--border); display:flex; gap:8px; flex-shrink:0; }
-  .main-shifted { margin-right:420px; transition:margin-right .3s cubic-bezier(.4,0,.2,1); }
+  .main-shifted { margin-right:clamp(320px, 30vw, 520px); transition:margin-right .3s cubic-bezier(.4,0,.2,1); }
 
   /* ── MOBILE SIDEBAR ── */
   .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99; }
@@ -266,6 +266,53 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
   #sidebar.collapsed { transform:translateX(-220px); }
   #main.sidebar-collapsed { margin-left:0; }
   @media(max-width:700px){ .sidebar-toggle{display:none;} }
+
+  /* ── HIDDEN COLUMNS ── */
+  th#th-osf, td.td-osf { display:none; }
+  th#th-mrc, td.td-mrc { display:none; }
+  th#th-otrf, td.td-otrf { display:none; }
+  th#th-posted, td.td-posted { display:none; }
+  th#th-channelfee, td.td-channelfee { display:none; }
+  th#th-cpm, td.td-cpm { display:none; }
+  th#th-effectiveDate, td.td-effectiveDate { display:none; }
+  th#th-activated, td.td-activated { display:none; }
+  th#th-provider, td.td-provider { display:none; }
+  th#th-arrivalDate, td.td-arrivalDate { display:none; }
+  th#th-activationDate, td.td-activationDate { display:none; }
+  th#th-type, td.td-type { display:none; }
+  th#th-provosf, td.td-provosf { display:none; }
+  th#th-provmrc, td.td-provmrc { display:none; }
+  th#th-provcpm, td.td-provcpm { display:none; }
+  th#th-postedDate, td.td-postedDate { display:none; }
+  th#th-routeBy, td.td-routeBy { display:none; }
+  th#th-prevClients, td.td-prevClients { display:none; }
+  th#th-deacDate, td.td-deacDate { display:none; }
+
+
+  /* ── TOOLTIP ON HOVER ── */
+  [title] { position:relative; }
+  .btn[title]:hover::after {
+    content:attr(title);
+    position:absolute; bottom:calc(100% + 6px); left:50%;
+    transform:translateX(-50%);
+    background:var(--bg4); color:var(--text);
+    border:1px solid var(--border); border-radius:6px;
+    padding:4px 8px; font-size:11px; white-space:nowrap;
+    z-index:9999; pointer-events:none;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
+
+  .icon-btn { width:36px; height:36px; padding:0; justify-content:center; position:relative; }
+  .icon-btn:hover::after {
+    content:attr(title);
+    position:absolute; bottom:calc(100% + 8px); left:50%;
+    transform:translateX(-50%);
+    background:var(--bg4); color:var(--text);
+    border:1px solid var(--border); border-radius:6px;
+    padding:4px 9px; font-size:11px; white-space:nowrap;
+    z-index:9999; pointer-events:none;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
 </style>
 </head>
 <body>
@@ -480,11 +527,11 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
           <thead><tr>
             <th><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
             <th>#</th><th onclick="sortBy('client')" style="cursor:pointer;user-select:none" id="th-client">Client</th><th onclick="sortBy('product')" style="cursor:pointer;user-select:none" id="th-product">Product</th><th onclick="sortBy('number')" style="cursor:pointer;user-select:none" id="th-number">Number</th><th onclick="sortBy('status')" style="cursor:pointer;user-select:none" id="th-status">Status</th><th onclick="sortBy('remarks')" style="cursor:pointer;user-select:none" id="th-remarks">Remarks</th>
-            <th onclick="sortBy('osf')" style="cursor:pointer;user-select:none" id="th-osf">OSF</th><th onclick="sortBy('mrc')" style="cursor:pointer;user-select:none" id="th-mrc">MRC</th><th onclick="sortBy('otrf')" style="cursor:pointer;user-select:none" id="th-otrf">OTRF</th><th onclick="sortBy('posted')" style="cursor:pointer;user-select:none" id="th-posted">Posted</th><th onclick="sortBy('channelfee')" style="cursor:pointer;user-select:none" id="th-channelfee">Ch.Fee</th><th onclick="sortBy('cpm')" style="cursor:pointer;user-select:none" id="th-cpm">CPM</th>
-            <th onclick="sortBy('effectiveDate')" style="cursor:pointer;user-select:none" id="th-effectiveDate">Effective Date</th><th onclick="sortBy('activated')" style="cursor:pointer;user-select:none" id="th-activated">Activated</th><th onclick="sortBy('provider')" style="cursor:pointer;user-select:none" id="th-provider">Provider</th>
-            <th onclick="sortBy('arrivalDate')" style="cursor:pointer;user-select:none" id="th-arrivalDate">Arrival Date</th><th onclick="sortBy('activationDate')" style="cursor:pointer;user-select:none" id="th-activationDate">Prov Act Date</th><th onclick="sortBy('type')" style="cursor:pointer;user-select:none" id="th-type">Type</th>
-            <th onclick="sortBy('provosf')" style="cursor:pointer;user-select:none" id="th-provosf">Prov OSF</th><th onclick="sortBy('provmrc')" style="cursor:pointer;user-select:none" id="th-provmrc">Prov MRC</th><th onclick="sortBy('provcpm')" style="cursor:pointer;user-select:none" id="th-provcpm">Prov CPM</th><th onclick="sortBy('postedDate')" style="cursor:pointer;user-select:none" id="th-postedDate">Posted Date</th>
-            <th onclick="sortBy('routeBy')" style="cursor:pointer;user-select:none" id="th-routeBy">Route Req By</th><th onclick="sortBy('prevClients')" style="cursor:pointer;user-select:none" id="th-prevClients">Prev Clients</th><th onclick="sortBy('deacDate')" style="cursor:pointer;user-select:none" id="th-deacDate">Deac Date</th>
+            <th onclick="sortBy('osf')" style="cursor:pointer;user-select:none" id="th-osf" class="col-hide">OSF</th><th onclick="sortBy('mrc')" style="cursor:pointer;user-select:none" id="th-mrc" class="col-hide">MRC</th><th onclick="sortBy('otrf')" style="cursor:pointer;user-select:none" id="th-otrf" class="col-hide">OTRF</th><th onclick="sortBy('posted')" style="cursor:pointer;user-select:none" id="th-posted" class="col-hide">Posted</th><th onclick="sortBy('channelfee')" style="cursor:pointer;user-select:none" id="th-channelfee" class="col-hide">Ch.Fee</th><th onclick="sortBy('cpm')" style="cursor:pointer;user-select:none" id="th-cpm" class="col-hide">CPM</th>
+            <th onclick="sortBy('effectiveDate')" style="cursor:pointer;user-select:none" id="th-effectiveDate" class="col-hide">Effective Date</th><th onclick="sortBy('activated')" style="cursor:pointer;user-select:none" id="th-activated" class="col-hide">Activated</th><th onclick="sortBy('provider')" style="cursor:pointer;user-select:none" id="th-provider" class="col-hide">Provider</th>
+            <th onclick="sortBy('arrivalDate')" style="cursor:pointer;user-select:none" id="th-arrivalDate" class="col-hide">Arrival Date</th><th onclick="sortBy('activationDate')" style="cursor:pointer;user-select:none" id="th-activationDate" class="col-hide">Prov Act Date</th><th onclick="sortBy('type')" style="cursor:pointer;user-select:none" id="th-type" class="col-hide">Type</th>
+            <th onclick="sortBy('provosf')" style="cursor:pointer;user-select:none" id="th-provosf" class="col-hide">Prov OSF</th><th onclick="sortBy('provmrc')" style="cursor:pointer;user-select:none" id="th-provmrc" class="col-hide">Prov MRC</th><th onclick="sortBy('provcpm')" style="cursor:pointer;user-select:none" id="th-provcpm" class="col-hide">Prov CPM</th><th onclick="sortBy('postedDate')" style="cursor:pointer;user-select:none" id="th-postedDate" class="col-hide">Posted Date</th>
+            <th onclick="sortBy('routeBy')" style="cursor:pointer;user-select:none" id="th-routeBy" class="col-hide">Route Req By</th><th onclick="sortBy('prevClients')" style="cursor:pointer;user-select:none" id="th-prevClients" class="col-hide">Prev Clients</th><th onclick="sortBy('deacDate')" style="cursor:pointer;user-select:none" id="th-deacDate" class="col-hide">Deac Date</th>
             <th>Actions</th>
           </tr></thead>
           <tbody id="inv-tbody"></tbody>
@@ -1379,15 +1426,15 @@ function renderRows() {
       <td style="font-weight:600">${r.number||''}</td>
       <td><span class="badge ${sc}">${r.status||''}</span></td>
       <td title="${r.remarks||''}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${r.remarks||''}</td>
-      <td>${r.osf||''}</td><td>${r.mrc||''}</td><td>${r.otrf||''}</td>
+      <td class='td-osf'>${r.osf||''}</td><td class='td-mrc'>${r.mrc||''}</td><td class='td-otrf'>${r.otrf||''}</td>
       <td><span class="badge ${pc}">${r.posted||'No'}</span></td>
-      <td>${r.channelfee||''}</td><td>${r.cpm||''}</td>
-      <td>${fmt(r.effectiveDate)}</td><td>${fmt(r.activated)}</td>
-      <td>${r.provider||''}</td><td>${fmt(r.arrivalDate)}</td><td>${fmt(r.activationDate)}</td>
-      <td title="${r.sessions||''}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${r.sessions||''}</td>
-      <td>${r.provosf||''}</td><td>${r.provmrc||''}</td><td>${r.provcpm||''}</td>
-      <td>${fmt(r.postedDate)}</td>
-      <td>${r.routeBy||''}</td><td title="${Array.isArray(r.prevClients)?r.prevClients.join(', '):(r.prevClient||'')}">${Array.isArray(r.prevClients)?r.prevClients.join(' → '):(r.prevClient||'')}</td><td>${fmt(r.deacDate)}</td>
+      <td class='td-channelfee'>${r.channelfee||''}</td><td class='td-cpm'>${r.cpm||''}</td>
+      <td class='td-effectiveDate'>${fmt(r.effectiveDate)}</td><td class='td-activated'>${fmt(r.activated)}</td>
+      <td class='td-provider'>${r.provider||''}</td><td class='td-arrivalDate'>${fmt(r.arrivalDate)}</td><td class='td-activationDate'>${fmt(r.activationDate)}</td>
+      <td class='td-type' title="${r.sessions||''}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${r.sessions||''}</td>
+      <td class='td-provosf'>${r.provosf||''}</td><td class='td-provmrc'>${r.provmrc||''}</td><td class='td-provcpm'>${r.provcpm||''}</td>
+      <td class='td-postedDate'>${fmt(r.postedDate)}</td>
+      <td class='td-routeBy'>${r.routeBy||''}</td><td class='td-prevClients' title="${Array.isArray(r.prevClients)?r.prevClients.join(', '):(r.prevClient||'')}">${Array.isArray(r.prevClients)?r.prevClients.join(' → '):(r.prevClient||'')}</td><td class='td-deacDate'>${fmt(r.deacDate)}</td>
       <td><div style="display:flex;gap:4px">${actionBtns}</div></td>
     </tr>`;
   }).join('');
@@ -2315,7 +2362,7 @@ function handleRowClick(e, id) {
 }
 
 function openEditFromPanel() {
-  if (sidePanelId) { closeSidePanel(); openEditModal(sidePanelId); }
+  if (sidePanelId) { openEditModal(sidePanelId); }
 }
 
 // ══════════════════════════════════════════
