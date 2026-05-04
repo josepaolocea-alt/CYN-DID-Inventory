@@ -1599,7 +1599,8 @@ async function deleteSelected() {
     const batch=db.batch();
     sel.forEach(r=>batch.delete(db.collection('records').doc(r.id)));
     await batch.commit();
-    writeLog('deleted', `${sel.length} records`, `Bulk deleted ${sel.length} records`);
+    const delNums = sel.map(r=>r.number||r.id).join(',');
+    writeLog('deleted', `${sel.length} records`, `Bulk deleted ${sel.length} records`, delNums);
     toast(`${sel.length} record(s) deleted`,'info');
   } catch(e){ toast('Delete error: '+e.message,'error'); }
 }
@@ -1732,7 +1733,8 @@ async function applyBulkEdit() {
     if(beProvmrc!=='') bulkFields.push(`ProvMRC→${beProvmrc}`);
     if(beProvcpm!=='') bulkFields.push(`ProvCPM→${beProvcpm}`);
     if(addPrevClient) bulkFields.push(`AddPrevClient→${addPrevClient}`);
-    writeLog('updated', `${sel.length} records`, `Bulk edit (${sel.length} records): ${bulkFields.join(', ')}`);
+    const affectedNums = sel.map(r=>r.number||r.id).join(',');
+    writeLog('updated', `${sel.length} records`, `Bulk edit (${sel.length} records): ${bulkFields.join(', ')}`, affectedNums);
     toast(`${sel.length} records updated`,'success');
   } catch(e){
     toast('Bulk edit error: '+e.message,'error');
@@ -2328,14 +2330,16 @@ let ALL_LOGS=[], filteredLogs=[], logPage=1;
 const LOG_PER_PAGE=50;
 let unsubLogs=null;
 
-function writeLog(action, number, details){
+function writeLog(action, number, details, affectedNumbers){
   if(!db) return;
-  db.collection('logs').add({
+  const logData={
     action, number:String(number||''), details:String(details||''),
     user: currentUserName||'Unknown',
     role: currentRole||'',
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }).catch(()=>{});
+  };
+  if(affectedNumbers) logData.affectedNumbers=String(affectedNumbers);
+  db.collection('logs').add(logData).catch(()=>{});
 }
 
 function listenLogs(){
@@ -2407,24 +2411,43 @@ function renderLogs(){
       const timeStr=ts.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
       const badge=actionColors[l.action]||'badge-available';
       const icon=actionIcons[l.action]||'•';
-      // Find matching record in DATA for clickable number
-      const matchRec = l.number ? DATA.find(r=>String(r.number||'').toLowerCase()===String(l.number||'').toLowerCase()) : null;
+      // Single record — clickable link
+      const matchRec = l.number && !l.number.includes('records')
+        ? DATA.find(r=>String(r.number||'').toLowerCase()===String(l.number||'').toLowerCase())
+        : null;
+
       const numCell = matchRec
         ? `<span style="font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="openSidePanel('${matchRec.id}');showPage('inventory',document.getElementById('nav-inventory'))" title="Click to view record">${l.number}</span>`
         : `<span style="font-weight:600;color:var(--text)">${l.number||'—'}</span>`;
 
-      // For bulk/csv actions that have multiple numbers, parse them
-      const isBulk = l.action==='updated' && l.number && l.number.includes('records');
-      const isDeleted = l.action==='deleted';
+      // Bulk action with stored numbers — show expand button
+      const hasBulkNums = l.affectedNumbers && l.affectedNumbers.length > 0;
+      const logRowId = 'logrow-' + (start+idx);
+      const expandBtn = hasBulkNums
+        ? `<button class="btn btn-secondary btn-sm" onclick="toggleLogExpand('${logRowId}')" style="margin-left:6px;padding:2px 7px;font-size:11px">▶ Show</button>`
+        : '';
 
-      return `<tr style="cursor:default">
+      // Build expanded numbers list
+      let expandedRow = '';
+      if(hasBulkNums){
+        const nums = l.affectedNumbers.split(',').filter(Boolean);
+        const numLinks = nums.map(n=>{
+          const rec = DATA.find(r=>String(r.number||'').toLowerCase()===n.toLowerCase().trim());
+          return rec
+            ? `<span onclick="openSidePanel('${rec.id}');showPage('inventory',document.getElementById('nav-inventory'))" style="color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-size:12px">${n.trim()}</span>`
+            : `<span style="color:var(--text2);font-size:12px">${n.trim()}</span>`;
+        }).join('<span style="color:var(--text3)"> · </span>');
+        expandedRow = `<tr id="${logRowId}-expand" class="hidden"><td></td><td colspan="5" style="padding:8px 12px 12px;background:var(--bg3)"><div style="font-size:12px;color:var(--text3);margin-bottom:6px">Affected numbers (${nums.length}):</div><div style="display:flex;flex-wrap:wrap;gap:6px">${numLinks}</div></td></tr>`;
+      }
+
+      return `<tr id="${logRowId}" style="cursor:default">
         <td style="color:var(--text3)">${start+idx+1}</td>
         <td style="white-space:nowrap"><div style="font-size:12px">${dateStr}</div><div style="font-size:11px;color:var(--text3)">${timeStr}</div></td>
         <td style="font-weight:500">${l.user||'—'}</td>
         <td><span class="badge ${badge}">${icon} ${l.action||'—'}</span></td>
-        <td>${numCell}</td>
+        <td><div style="display:flex;align-items:center">${numCell}${expandBtn}</div></td>
         <td style="color:var(--text2);max-width:260px;overflow:hidden;text-overflow:ellipsis" title="${l.details||''}">${l.details||'—'}</td>
-      </tr>`;
+      </tr>${expandedRow}`;
     }).join('');
   }
 
@@ -2439,6 +2462,15 @@ function renderLogs(){
   const s=Math.max(1,logPage-2),e=Math.min(pages,logPage+2);
   for(let i=s;i<=e;i++) addBtn(i,i,i===logPage);
   if(logPage<pages) addBtn('›',logPage+1,false);
+}
+
+function toggleLogExpand(rowId){
+  const expandRow = document.getElementById(rowId+'-expand');
+  const btn = document.querySelector('#'+rowId+' button');
+  if(!expandRow) return;
+  const isHidden = expandRow.classList.contains('hidden');
+  expandRow.classList.toggle('hidden', !isHidden);
+  if(btn) btn.textContent = isHidden ? '▼ Hide' : '▶ Show';
 }
 
 function exportLogsCSV(){
