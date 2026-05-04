@@ -112,7 +112,7 @@ body{font-family:var(--sf);background:var(--bg);color:var(--text);min-height:100
 /* ── MAIN ── */
 #main{margin-left:220px;padding:24px;min-height:100vh;}
 .page{display:none;}.page.active{display:block;}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border);background:var(--bg2);}
 .topbar h2{font-size:22px;font-weight:700;letter-spacing:-.4px;}
 .topbar-actions{display:flex;gap:8px;flex-wrap:wrap;}
 
@@ -458,7 +458,7 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
   <!-- INVENTORY -->
   <div id="page-inventory" class="page">
     <div class="topbar">
-      <h2>Inventory</h2>
+      <h2 style="font-size:18px;font-weight:700;letter-spacing:-.3px">Inventory</h2>
       <div class="topbar-actions" id="inv-actions">
         <!-- Add Number: keeps label as primary CTA -->
         <button class="btn btn-green admin-only" onclick="openAddModal()" title="Add Number">
@@ -477,17 +477,14 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <button class="btn btn-secondary icon-btn" onclick="exportAllCSV()" title="Export All">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
-        <!-- Download Selected (hidden until rows selected) -->
-        <button class="btn btn-secondary icon-btn hidden" id="btn-dl-sel" onclick="downloadSelectedCSV()" title="Download Selected">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </button>
+
         <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
       </div>
     </div>
     <div id="viewer-banner" class="readonly-banner hidden">
       👁️ You are in <strong>Viewer</strong> mode — read-only access. Contact an Admin to make changes.
     </div>
-    <!-- FILTER BAR: single row + collapsible more -->
+    <div style="padding:10px 20px 0">
     <div style="display:flex;align-items:center;gap:8px;padding:10px 20px 10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
       <div style="display:flex;gap:0;flex:1;min-width:200px;max-width:320px">
         <select class="search-select" id="search-field" onchange="applyFilters()" style="border-radius:8px 0 0 8px;border-right:none;flex-shrink:0;font-size:12px">
@@ -522,6 +519,8 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
       <span style="color:var(--text3)">–</span>
       <input class="search-input" id="filter-date-end" type="date" onchange="applyFilters()" style="width:145px">
     </div>
+    </div>
+    <div style="padding:0 20px 20px">
     <div class="table-wrap">
       <div class="table-toolbar">
         <div class="table-toolbar-left">
@@ -642,6 +641,8 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:
         <button class="btn btn-danger btn-sm admin-only" onclick="clearAllLogs()">🗑 Clear All Logs</button>
       </div>
     </div>
+    </div>
+    <div style="padding:0 20px 20px">
     <div class="table-wrap">
       <div class="table-toolbar">
         <span style="font-size:12px;color:var(--text2)" id="log-count"></span>
